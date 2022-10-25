@@ -1,0 +1,138 @@
+---
+title: "Analysis"
+site: workflowr::wflow_site
+output:
+  workflowr::wflow_html:
+    toc: false
+editor_options:
+  chunk_output_type: console
+---
+
+# Introduction
+Here we analysis a mouse model of CCl4 induced chronic liver disease. The transcriptomic profiles were measured at time point 0, 2, 6, and 12 month. For the time points 2 and 12 month time-matched oil controls are available. 
+
+# Libraries and sources
+These libraries and sources are used for this analysis.
+```{r libs-and-src, message=FALSE, warning=FALSE, cache=FALSE}
+library(here)
+library(tidyverse)
+library(cowplot)
+library(lemon)
+library(tidytext)
+library(AachenColorPalette) #remotes::install_github("christianholland/AachenColorPalette")
+# library(devtools)
+
+# devtools::source_url("https://github.com/saezlab/liver-disease-atlas/blob/master/code/utils-plots.R")
+```
+
+Definition of global variables that are used throughout this analysis.
+```{r analysis-specific-params, cache=FALSE}
+# i/o
+data_path <- "data"
+output_path <- "output"
+```
+
+
+<!-- ```{r "number of annotated genes"} -->
+<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
+
+<!-- gene_anno |>  -->
+<!--   count(family, phase) |>  -->
+<!--   ggplot(aes(x=family, y=n)) + -->
+<!--   geom_col() + -->
+<!--   facet_rep_wrap(~phase, scales="free_x") -->
+<!-- ``` -->
+
+
+<!-- ```{r} -->
+<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
+<!-- df <- readRDS(here(data_path, "limma_result.rds")) |>  -->
+<!--   filter(contrast_reference == "pure_ccl4") |>  -->
+<!--   inner_join(gene_anno, by="gene") -->
+
+<!-- df |>  -->
+<!--   filter(regulation != "ns") |>  -->
+<!--   count(gene, category, phase) |>  -->
+<!--   count(category, phase) -->
+<!-- ``` -->
+
+
+
+<!-- ```{r volcano-plots} -->
+<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
+<!-- df <- readRDS(here(data_path, "limma_result.rds")) |>  -->
+<!--   filter(contrast_reference == "pure_ccl4") |>  -->
+<!--   inner_join(gene_anno, by="gene") -->
+
+<!-- df |> -->
+<!--   filter(regulation != "ns") |>  -->
+<!--   ggplot(aes(x=logFC, y=reorder_within(gene, logFC, contrast), fill=family)) + -->
+<!--   geom_col() + -->
+<!--   scale_y_reordered() + -->
+<!--   facet_rep_wrap(~contrast, scales="free_y") + -->
+<!--   theme(axis.text.y = element_blank(), -->
+<!--         axis.ticks.y = element_blank()) + -->
+<!--   scale_fill_manual(values = brewer.pal(8,"Dark2")) + -->
+<!--   labs(y="Genes") -->
+
+<!-- df %>% -->
+<!--   ggplot(aes( -->
+<!--     x = logFC, y = -log10(pval), color = family, -->
+<!--     alpha = regulation -->
+<!--   )) + -->
+<!--   geom_point() + -->
+<!--   facet_rep_wrap(~contrast) + -->
+<!--   labs(x = "logFC", y = expression(-log["10"] * "(p-value)")) + -->
+<!--   scale_alpha_manual(values = c(0.7, 0.7, 0.2), guide = "none", drop = F) -->
+<!-- ``` -->
+
+<!-- ### Volcano plots -->
+<!-- Volcano plot highlighting Cyp genes -->
+<!-- ```{r volcano-plots} -->
+<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
+<!-- # find genes that are differentially expressed in at least one timepoint -->
+<!-- degs <- readRDS(here(data_path, "limma_result.rds")) |>  -->
+<!--   filter(contrast_reference == "pure_ccl4") |>  -->
+<!--   inner_join(gene_anno, by="gene") %>% -->
+<!--   filter(regulation != "ns") |>  -->
+<!--   select(gene, family, phase) -->
+
+<!-- stem_result <- readRDS(here(data_path, "stem_result.rds")) |>  -->
+<!--   inner_join(degs, by="gene") -->
+
+<!-- stem_result %>%  -->
+<!--   ggplot(aes(x = time, y = value, group = gene, color=family)) + -->
+<!--   geom_hline(yintercept = 0) + -->
+<!--   geom_line(alpha=0.5) + -->
+<!--   scale_x_continuous(breaks = unique(stem_result$time)) + -->
+<!--   labs(x = "Time", y = "logFC") + -->
+<!--   theme(strip.text = element_text(angle = 0, hjust = 0)) + -->
+<!--   facet_rep_wrap(~profile, scales = "free") -->
+<!-- ``` -->
+
+<!-- ## pericentral genes -->
+
+<!-- ```{r} -->
+<!-- pericentral_genes = read_csv("https://raw.githubusercontent.com/saezlab/LiverPeriportalization/master/paper/material/consensus_pericentral_geneset.csv") -->
+<!-- # find genes that are differentially expressed in at least one timepoint -->
+<!-- degs <- readRDS(here(data_path, "limma_result.rds")) |>  -->
+<!--   filter(contrast_reference == "pure_ccl4") |>  -->
+<!--   inner_join(pericentral_genes, by="gene") %>% -->
+<!--   filter(regulation != "ns") |>  -->
+<!--   select(gene) -->
+
+
+<!-- stem_result <- readRDS(here(data_path, "stem_result.rds")) |>  -->
+<!--   inner_join(degs, by="gene") -->
+
+<!-- stem_result %>%  -->
+<!--   ggplot(aes(x = time, y = value, group = gene)) + -->
+<!--   geom_hline(yintercept = 0) + -->
+<!--   geom_line(alpha=0.5) + -->
+<!--   scale_x_continuous(breaks = unique(stem_result$time)) + -->
+<!--   labs(x = "Time", y = "logFC") + -->
+<!--   theme(strip.text = element_text(angle = 0, hjust = 0)) + -->
+<!--   facet_rep_wrap(~profile, scales = "free") -->
+<!-- ``` -->
+
+
