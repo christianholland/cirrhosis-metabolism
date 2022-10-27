@@ -10,4 +10,7 @@ analysis/*html
 analysis/*_cache
 analysis/site_libs
 
-data/
+data/**/*.rds
+data/**/*.zip
+output/**/*.rds
+*.html
