@@ -1,138 +1,359 @@
 ---
 title: "Analysis"
 site: workflowr::wflow_site
+bibliography: ../data/references/references.bib
 output:
   workflowr::wflow_html:
-    toc: false
+    toc: true
 editor_options:
   chunk_output_type: console
 ---
 
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE
+)
+```
+
+
 # Introduction
-Here we analysis a mouse model of CCl4 induced chronic liver disease. The transcriptomic profiles were measured at time point 0, 2, 6, and 12 month. For the time points 2 and 12 month time-matched oil controls are available. 
+This script analyzes the expression of genes involved in the metabolism of 
+xenobiotic substances in one of our previously published mouse model that 
+develops chronic liver disease induced by administration of CCl~4~ for 2, 6 and 
+12 months [@Holland2021]. 
+
+The focus is on the following gene families:
+
+* Phase I
+  + Cytochrome p450 dependent monooxygenase (CYP)
+  + Flavin dependent monooxygenases (FMO)
+  + Monoamine oxidase (MAO)
+  + Cyclooxgenase (COX)
+  + Dihydrodioldehydrogenase (**Not yet implemented**)
+  + DT-Diaphorase (NQOR)
+  + Alcohol- and Aldehyddehydrogenase (ADH/ALDH)
+  + Epoxidhydrolase (**Not yet implemented**)
+* Phase II
+  + Glutathiontransferase (GST)
+  + UDP-glucuronosyltransferase (UGT)
+  + Sulfotransferase (SULT)
+  + Acetyltransferase (NAT)
+  + Methyltransferase (MT)
 
 # Libraries and sources
 These libraries and sources are used for this analysis.
-```{r libs-and-src, message=FALSE, warning=FALSE, cache=FALSE}
-library(here)
+```{r libs-and-src, message=FALSE, warning=FALSE, cache=FALSE, echo=TRUE}
+# data wrangling
 library(tidyverse)
+
+# statistics
+library(fgsea)
+
+# plotting
 library(cowplot)
 library(lemon)
 library(tidytext)
-library(AachenColorPalette) #remotes::install_github("christianholland/AachenColorPalette")
-# library(devtools)
+library(UpSetR)
+library(plotly)
+library(scales)
 
-# devtools::source_url("https://github.com/saezlab/liver-disease-atlas/blob/master/code/utils-plots.R")
+# colors
+library(AachenColorPalette)
+library(RColorBrewer)
+
+# display tables
+library(DT)
+library(knitr)
+
+# development helpers
+library(here)
+library(devtools)
+
+# other
+library(htmltools)
+
+base_url <- "https://raw.githubusercontent.com/saezlab/liver-disease-atlas"
+source_url(file.path(base_url, "master", "code", "utils-plots.R"))
+source_url(file.path(base_url, "master", "code", "utils-utils.R"))
 ```
 
 Definition of global variables that are used throughout this analysis.
 ```{r analysis-specific-params, cache=FALSE}
-# i/o
-data_path <- "data"
-output_path <- "output"
+data_path <- "data/mouse-chronic-ccl4"
+output_path <- "output/mouse-chronic-ccl4"
+```
+
+# Metabolic genes
+## Annotate metabolic genes
+This table displays all genes that are considered in this analysis
+```{r annotate-genes, echo=TRUE}
+# extract all possible genes
+genes <- readRDS(here(data_path, "count_matrix.rds")) |>
+  rownames_to_column("gene") |>
+  as_tibble() |>
+  select(gene)
+
+genes <- genes |>
+  mutate(family = case_when(
+    str_detect(gene, "^Cyp") ~ "CYP",
+    str_detect(gene, "^Ugt") ~ "UGT",
+    str_detect(gene, "^Fmo") ~ "FMO",
+    str_detect(gene, "^Mao") ~ "MAO",
+    str_detect(gene, "^Cox") ~ "COX",
+    str_detect(gene, "^Adh|Aldh") ~ "ADH/ALDH",
+    str_detect(gene, "^Sult") ~ "SULT",
+    str_detect(gene, "^Nat") ~ "NAT",
+    str_detect(gene, "^Mt") ~ "MT",
+    str_detect(gene, "^Nqor") ~ "NQOR",
+    str_detect(gene, "^Gst") ~ "GST",
+    # str_detect(gene, "^xxx") ~ "Epoxidhydrolasen",
+    # str_detect(gene, "^xxx") ~ "Dihydrodioldehydrogenase",
+    TRUE ~ NA_character_
+  )) |>
+  drop_na(family) |>
+  mutate(phase = case_when(
+    family %in% c("CYP", "FMO", "MAO", "COX", "NQOR", "ADH/ALDH") ~ "Phase I",
+    family %in% c("GST", "UGT", "SULT", "NAT", "MT") ~ "Phase II",
+  )) |>
+  mutate(
+    family = as_factor(family),
+    phase = as_factor(phase)
+  ) |> 
+  select(phase, family, gene)
+
+saveRDS(genes, here(output_path, "metabolic_genes.rds"))
+
+datatable(genes)
+```
+
+## Number of metabolic genes
+```{r number-of-metabolic-genes}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds"))
+
+metabolic_genes |>
+  count(family, phase) |>
+  ggplot(aes(x = family, y = n)) +
+  geom_col() +
+  facet_rep_wrap(~phase, scales = "free_x") +
+  labs(x = "Gene familiy", y = "Number of genes") +
+  my_theme(grid = "y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
 
-<!-- ```{r "number of annotated genes"} -->
-<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
+## Fraction of differentially expressed metabolic genes
+```{r fraction-deg-family-genes, results="asis"}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  add_count(family, name = "size")
 
-<!-- gene_anno |>  -->
-<!--   count(family, phase) |>  -->
-<!--   ggplot(aes(x=family, y=n)) + -->
-<!--   geom_col() + -->
-<!--   facet_rep_wrap(~phase, scales="free_x") -->
-<!-- ``` -->
+df <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4") |>
+  inner_join(metabolic_genes, by = "gene")
 
+df |>
+  filter(regulation != "ns") |>
+  count(gene, phase, family, size) |>
+  count(phase, family, size) |>
+  mutate(fraction = n / size) |>
+  arrange(-fraction) |>
+  kable(caption = str_c(
+    "Fraction of gene family members that are differentially expressed in at",
+    "least one timepoint"
+  ))
+```
 
-<!-- ```{r} -->
-<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
-<!-- df <- readRDS(here(data_path, "limma_result.rds")) |>  -->
-<!--   filter(contrast_reference == "pure_ccl4") |>  -->
-<!--   inner_join(gene_anno, by="gene") -->
+## Differentially expressed metabolic families arcoss time points
+```{r degs-across-time-points}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds"))
+df <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4") |>
+  inner_join(metabolic_genes, by = "gene")
 
-<!-- df |>  -->
-<!--   filter(regulation != "ns") |>  -->
-<!--   count(gene, category, phase) |>  -->
-<!--   count(category, phase) -->
-<!-- ``` -->
+df |>
+  filter(regulation != "ns") |>
+  ggplot(aes(
+    x = logFC, y = reorder_within(gene, logFC, contrast),
+    fill = family
+  )) +
+  geom_col() +
+  scale_y_reordered() +
+  facet_rep_wrap(~contrast, scales = "free_y") +
+  theme(
+    axis.text.y = element_blank(),
+    axis.ticks.y = element_blank()
+  ) +
+  scale_fill_manual(values = brewer.pal(9, "Set1")) +
+  labs(y = "Genes") +
+  my_theme(grid = "x")
+```
 
+## Enrichment analysis
+```{r enrichment-metabolic-genes, warning=FALSE, fig.height=8}
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4")
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  select(gene, geneset = family)
 
+mat <- limma_result |>
+  select(gene, contrast, logFC) |>
+  pivot_wider(names_from = contrast, values_from = logFC) |>
+  data.frame(row.names = 1)
 
-<!-- ```{r volcano-plots} -->
-<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
-<!-- df <- readRDS(here(data_path, "limma_result.rds")) |>  -->
-<!--   filter(contrast_reference == "pure_ccl4") |>  -->
-<!--   inner_join(gene_anno, by="gene") -->
+res <- run_gsea(mat, metabolic_genes, options = list(minSize = 10), tidy = TRUE)
 
-<!-- df |> -->
-<!--   filter(regulation != "ns") |>  -->
-<!--   ggplot(aes(x=logFC, y=reorder_within(gene, logFC, contrast), fill=family)) + -->
-<!--   geom_col() + -->
-<!--   scale_y_reordered() + -->
-<!--   facet_rep_wrap(~contrast, scales="free_y") + -->
-<!--   theme(axis.text.y = element_blank(), -->
-<!--         axis.ticks.y = element_blank()) + -->
-<!--   scale_fill_manual(values = brewer.pal(8,"Dark2")) + -->
-<!--   labs(y="Genes") -->
-
-<!-- df %>% -->
-<!--   ggplot(aes( -->
-<!--     x = logFC, y = -log10(pval), color = family, -->
-<!--     alpha = regulation -->
-<!--   )) + -->
-<!--   geom_point() + -->
-<!--   facet_rep_wrap(~contrast) + -->
-<!--   labs(x = "logFC", y = expression(-log["10"] * "(p-value)")) + -->
-<!--   scale_alpha_manual(values = c(0.7, 0.7, 0.2), guide = "none", drop = F) -->
-<!-- ``` -->
-
-<!-- ### Volcano plots -->
-<!-- Volcano plot highlighting Cyp genes -->
-<!-- ```{r volcano-plots} -->
-<!-- gene_anno = readRDS(here(data_path, "gene_annotation.rds")) -->
-<!-- # find genes that are differentially expressed in at least one timepoint -->
-<!-- degs <- readRDS(here(data_path, "limma_result.rds")) |>  -->
-<!--   filter(contrast_reference == "pure_ccl4") |>  -->
-<!--   inner_join(gene_anno, by="gene") %>% -->
-<!--   filter(regulation != "ns") |>  -->
-<!--   select(gene, family, phase) -->
-
-<!-- stem_result <- readRDS(here(data_path, "stem_result.rds")) |>  -->
-<!--   inner_join(degs, by="gene") -->
-
-<!-- stem_result %>%  -->
-<!--   ggplot(aes(x = time, y = value, group = gene, color=family)) + -->
-<!--   geom_hline(yintercept = 0) + -->
-<!--   geom_line(alpha=0.5) + -->
-<!--   scale_x_continuous(breaks = unique(stem_result$time)) + -->
-<!--   labs(x = "Time", y = "logFC") + -->
-<!--   theme(strip.text = element_text(angle = 0, hjust = 0)) + -->
-<!--   facet_rep_wrap(~profile, scales = "free") -->
-<!-- ``` -->
-
-<!-- ## pericentral genes -->
-
-<!-- ```{r} -->
-<!-- pericentral_genes = read_csv("https://raw.githubusercontent.com/saezlab/LiverPeriportalization/master/paper/material/consensus_pericentral_geneset.csv") -->
-<!-- # find genes that are differentially expressed in at least one timepoint -->
-<!-- degs <- readRDS(here(data_path, "limma_result.rds")) |>  -->
-<!--   filter(contrast_reference == "pure_ccl4") |>  -->
-<!--   inner_join(pericentral_genes, by="gene") %>% -->
-<!--   filter(regulation != "ns") |>  -->
-<!--   select(gene) -->
+res |>
+  mutate(signature = as_factor(signature)) |>
+  ggplot(aes(
+    x = reorder_within(geneset, NES, signature), y = NES, fill = NES
+  )) +
+  geom_col() +
+  scale_x_reordered() +
+  facet_rep_wrap(~signature, scales = "free", ncol = 1) +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red")
+  ) +
+  labs(x = "Metabolic gene family") +
+  geom_text(
+    aes(label = str_c("p = ", scientific(padj, 3), sep = " "), y = 0.85 * NES),
+    color = "white", position = position_dodge(width = 0), size = 2.5
+  ) +
+  my_theme(grid = "y")
+```
 
 
-<!-- stem_result <- readRDS(here(data_path, "stem_result.rds")) |>  -->
-<!--   inner_join(degs, by="gene") -->
+## Trajectories of metabolic genes
+Only metabolic genes that are differentially expressed in **at least** one timepoint are considered.
+```{r trajectories-of-metabolic-genes, message=FALSE, warning=FALSE, results="asis"}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds"))
 
-<!-- stem_result %>%  -->
-<!--   ggplot(aes(x = time, y = value, group = gene)) + -->
-<!--   geom_hline(yintercept = 0) + -->
-<!--   geom_line(alpha=0.5) + -->
-<!--   scale_x_continuous(breaks = unique(stem_result$time)) + -->
-<!--   labs(x = "Time", y = "logFC") + -->
-<!--   theme(strip.text = element_text(angle = 0, hjust = 0)) + -->
-<!--   facet_rep_wrap(~profile, scales = "free") -->
-<!-- ``` -->
+# find genes that are differentially expressed in at least one timepoint
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4") |>
+  mutate(time = parse_number(as.character(contrast))) |>
+  select(gene, pval, fdr, regulation, time)
+
+degs <- limma_result |>
+  filter(regulation != "ns") |>
+  inner_join(metabolic_genes, by = "gene") |>
+  distinct(gene, family, phase)
+
+stem_result <- readRDS(here(data_path, "stem_result.rds")) |>
+  inner_join(degs, by = "gene") |>
+  left_join(limma_result, by = c("gene", "time"))
+
+# plot trajectories for all gene family members separately
+plotlist <- map(unique(degs$family), function(f) {
+  p <- stem_result |>
+    filter(family == {{ f }}) |>
+    ggplot(aes(
+      x = time, y = value, group = gene, color = family, pval = pval,
+      fdr = fdr
+    )) +
+    geom_hline(yintercept = 0) +
+    geom_line(alpha = 0.5) +
+    geom_point(size = 0.25) +
+    scale_x_continuous(breaks = unique(stem_result$time)) +
+    scale_color_manual(values = brewer.pal(9, "Set1")) +
+    labs(x = "Time", y = "logFC") +
+    theme(
+      strip.text = element_text(angle = 0, hjust = 0),
+      legend.position = "none"
+    ) +
+    facet_rep_wrap(~profile, scales = "free", ncol = 4) +
+    my_theme(grid = "y") +
+    ggtitle(label = f)
 
 
+  return(
+    ggplotly(p,
+      height = ceiling(length(unique(p$data$profile)) / 4) * 200 + 100
+    )
+  )
+})
+
+tagList(setNames(plotlist, NULL))
+
+stem_result |>
+  distinct(gene, family, phase, profile) |>
+  select(phase, family, profile, gene) |>
+  arrange(family, profile, gene) |>
+  datatable()
+```
+
+
+# Metabolic genes with pericentral location
+The list of pericentral genes is taken from one of our previous studies 
+[@Ghallab2019].
+
+## Overlap of metabolic and pericentral genes
+```{r gene-overlap}
+pericentral_genes <- readRDS(here("data", "annotation", 
+                                  "pericentral_genes.rds")) |>
+  rename(category = zonation)
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  select(gene, category = family)
+
+df <- bind_rows(pericentral_genes, metabolic_genes) |>
+  mutate(value = 1) |>
+  pivot_wider(names_from = category, values_from = value, values_fill = 0) |>
+  data.frame(check.names = FALSE)
+
+upset(df, nsets = 10)
+```
+
+## Trajectories of metabolic genes with pericentral location
+Only genes that are differentially expressed in **at least** one timepoint are considered.
+```{r trajectories-of-metabolic-genes-with-pericentral-location}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds"))
+pericentral_genes <- readRDS(here("data", "annotation", 
+                                  "pericentral_genes.rds"))
+
+common_genes <- metabolic_genes |>
+  inner_join(pericentral_genes, by = "gene")
+
+# find genes that are differentially expressed in at least one
+# timepoint
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4") |>
+  mutate(time = parse_number(as.character(contrast))) |>
+  select(gene, pval, fdr, regulation, time)
+
+degs <- limma_result |>
+  inner_join(common_genes, by = "gene") |>
+  filter(regulation != "ns") |>
+  distinct(phase, family, gene)
+
+stem_result <- readRDS(here(data_path, "stem_result.rds")) |>
+  inner_join(degs, by = "gene") |>
+  left_join(limma_result, by = c("gene", "time"))
+
+p <- stem_result |>
+  ggplot(aes(
+    x = time, y = value, group = gene, pval = pval, fdr = fdr,
+    color = family
+  )) +
+  geom_hline(yintercept = 0) +
+  geom_line(alpha = 0.5) +
+  geom_point(size = 0.25) +
+  scale_x_continuous(breaks = unique(stem_result$time)) +
+  scale_color_manual(values = brewer.pal(9, "Set1")) +
+  labs(x = "Time", y = "logFC") +
+  theme(
+    strip.text = element_text(angle = 0, hjust = 0),
+    legend.position = "top"
+  ) +
+  facet_rep_wrap(~profile, scales = "free", ncol = 4) +
+  my_theme(grid = "y") +
+  ggtitle(label = "Metabolic genes with pericentral location")
+
+ggplotly(p, height = ceiling(length(unique(p$data$profile)) / 4) * 200 + 100)
+
+stem_result |>
+  distinct(gene, family, phase, profile) |>
+  select(phase, family, profile, gene) |>
+  arrange(profile, family, gene) |>
+  datatable()
+```
+
+# References
