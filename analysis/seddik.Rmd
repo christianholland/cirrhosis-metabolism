@@ -31,10 +31,8 @@ library(readxl)
 library(fgsea)
 
 # plotting
-library(cowplot)
 library(lemon)
 library(tidytext)
-library(UpSetR)
 library(plotly)
 library(scales)
 
@@ -44,14 +42,10 @@ library(RColorBrewer)
 
 # display tables
 library(DT)
-library(knitr)
 
 # development helpers
 library(here)
 library(devtools)
-
-# other
-library(htmltools)
 
 base_url <- "https://raw.githubusercontent.com/saezlab/liver-disease-atlas"
 source_url(file.path(base_url, "master", "code", "utils-plots.R"))
@@ -95,7 +89,7 @@ df |>
 ```
 
 ## Enrichment analysis
-```{r enrichment, warning=FALSE, fig.height=8}
+```{r enrichment, warning=FALSE, fig.height=4}
 limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
   filter(contrast %in% c("pure_ccl_12m_vs_0m", "ccl_12m_vs_0m"))
 genes <- readRDS(here(output_path, "genes_of_interest.rds")) |>
@@ -111,15 +105,14 @@ res <- run_gsea(mat, genes, options = list(minSize = 10), tidy = TRUE)
 res |>
   mutate(signature = as_factor(signature)) |>
   ggplot(aes(
-    x = reorder_within(geneset, NES, signature), y = NES, fill = NES
+    x = signature, y = NES, fill = NES
   )) +
   geom_col() +
-  scale_x_reordered() +
-  facet_rep_wrap(~signature, scales = "free", ncol = 1) +
   scale_fill_gradient2(
     low = aachen_color("blue"), mid = "white",
     high = aachen_color("red")
   ) +
+  labs(x=NULL) +
   geom_text(
     aes(label = str_c("p = ", scientific(padj, 3), sep = " "), y = 0.85 * NES),
     color = "white", position = position_dodge(width = 0), size = 2.5
