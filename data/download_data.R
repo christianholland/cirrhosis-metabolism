@@ -21,8 +21,13 @@ data_files <- c(
   "data/mouse-chronic-ccl4/meta_data.rds",
   "data/mouse-chronic-ccl4/count_matrix.rds"
 )
-unzip(here("data/data.zip"), files = data_files, exdir = here())
 
+unzip(here("data/data.zip"), files = data_files, exdir = here())
+unzip(
+  here("data/data.zip"),
+  files = c("data/annotation/gene_id_annotation.rds"),
+  exdir = here()
+)
 
 # download output folder and extract certain files
 download.file(
@@ -50,5 +55,5 @@ unlink(here("data/output/"), recursive = TRUE)
 
 # Download pericentral genes ----------------------------------------------
 
-pericentral_genes = read_csv("https://raw.githubusercontent.com/saezlab/LiverPeriportalization/master/paper/material/consensus_pericentral_geneset.csv")
+pericentral_genes <- read_csv("https://raw.githubusercontent.com/saezlab/LiverPeriportalization/master/paper/material/consensus_pericentral_geneset.csv")
 saveRDS(pericentral_genes, here("data/annotation/pericentral_genes.rds"))
