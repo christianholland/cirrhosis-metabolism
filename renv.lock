@@ -1204,6 +1204,21 @@
         "vctrs"
       ]
     },
+    "msigdf": {
+      "Package": "msigdf",
+      "Version": "7.4",
+      "Source": "GitHub",
+      "RemoteType": "github",
+      "RemoteHost": "api.github.com",
+      "RemoteRepo": "msigdf",
+      "RemoteUsername": "toledoem",
+      "RemoteRef": "HEAD",
+      "RemoteSha": "742d8113f758239032c19ffbb679e28a873bb4a2",
+      "Hash": "cbba59250ceea4e959bdefccb87cfc86",
+      "Requirements": [
+        "tibble"
+      ]
+    },
     "munsell": {
       "Package": "munsell",
       "Version": "0.5.0",
@@ -1232,6 +1247,17 @@
       "Hash": "e86c5ffeb8474a9e03d75f5d2919683e",
       "Requirements": [
         "askpass"
+      ]
+    },
+    "patchwork": {
+      "Package": "patchwork",
+      "Version": "1.1.2",
+      "Source": "Repository",
+      "Repository": "CRAN",
+      "Hash": "63b611e9d909a9ed057639d9c3b77152",
+      "Requirements": [
+        "ggplot2",
+        "gtable"
       ]
     },
     "pillar": {
