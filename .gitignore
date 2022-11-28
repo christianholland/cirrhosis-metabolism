@@ -12,5 +12,6 @@ analysis/site_libs
 
 data/**/*.rds
 data/**/*.zip
+data/**/*.xlsx
 output/**/*.rds
 *.html
