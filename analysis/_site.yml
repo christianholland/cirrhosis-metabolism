@@ -1,16 +1,16 @@
 name: "Cirrhosis Metabolism"
 output_dir: ../docs
 navbar:
-  title: "Cirrhosis Metabolism"
+  title: "Chronic CCl4 model"
   left:
   - text: Home
     href: index.html
   - text: Analysis
-    href: analysis.html
-  - text: Analysis for Seddik
-    href: seddik.html
-  - text: License
-    href: license.html
+    menu:
+    - text: "Metabolic genes"
+      href: "metabolic_genes.html"
+    - text: "'Tolerance' genes"
+      href: "tolerance_genes.html"
 output:
   workflowr::wflow_html:
     toc: yes
