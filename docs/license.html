@@ -248,21 +248,27 @@ $(document).ready(function () {
         <span class="icon-bar"></span>
         <span class="icon-bar"></span>
       </button>
-      <a class="navbar-brand" href="index.html">Cirrhosis Metabolism</a>
+      <a class="navbar-brand" href="index.html">Chronic CCl4 model</a>
     </div>
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
   <a href="index.html">Home</a>
 </li>
-<li>
-  <a href="analysis.html">Analysis</a>
-</li>
-<li>
-  <a href="seddik.html">Analysis for Seddik</a>
-</li>
-<li>
-  <a href="license.html">License</a>
+<li class="dropdown">
+  <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+    Analysis
+     
+    <span class="caret"></span>
+  </a>
+  <ul class="dropdown-menu" role="menu">
+    <li>
+      <a href="metabolic_genes.html">Metabolic genes</a>
+    </li>
+    <li>
+      <a href="tolerance_genes.html">'Tolerance' genes</a>
+    </li>
+  </ul>
 </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -305,7 +311,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2022-11-28
+<strong>Last updated:</strong> 2022-11-29
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -352,15 +358,15 @@ results.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtreed26dd976123b9d49387cd0055cc30b99ccdfff46targetblankd26dd97a">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtree471589257da5c0c167a2887901108645db6646cdtargetblank4715892a">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/d26dd976123b9d49387cd0055cc30b99ccdfff46" target="_blank">d26dd97</a>
+<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/471589257da5c0c167a2887901108645db6646cd" target="_blank">4715892</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtreed26dd976123b9d49387cd0055cc30b99ccdfff46targetblankd26dd97a"
+id="strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtree471589257da5c0c167a2887901108645db6646cdtargetblank4715892a"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -370,7 +376,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/d26dd976123b9d49387cd0055cc30b99ccdfff46" target="_blank">d26dd97</a>.
+<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/471589257da5c0c167a2887901108645db6646cd" target="_blank">4715892</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -400,6 +406,11 @@ Ignored files:
     Ignored:    renv/library/
     Ignored:    renv/sandbox/
     Ignored:    renv/staging/
+
+Unstaged changes:
+    Modified:   analysis/_site.yml
+    Deleted:    analysis/analysis.Rmd
+    Deleted:    analysis/seddik.Rmd
 
 </code></pre>
 <p>
@@ -445,6 +456,23 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/christianholland/cirrhosis-metabolism/e78a0720be36f34206130fd285e14f0dc9722999/docs/license.html" target="_blank">e78a072</a>
+</td>
+<td>
+christianholland
+</td>
+<td>
+2022-11-28
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 html
