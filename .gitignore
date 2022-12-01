@@ -14,4 +14,3 @@ data/**/*.rds
 data/**/*.zip
 data/**/*.xlsx
 output/**/*.rds
-*.html
