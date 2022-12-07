@@ -61,7 +61,7 @@ output_path <- "output/seddik"
 ## Annotate genes
 ```{r annotate-genes, echo=TRUE}
 # extract gene names
-genes <- read_excel(here("data/seddik/210genes.xlsx")) |>
+genes <- read_excel(here("data/annotation/210genes.xlsx")) |>
   select(entrez = EntrezID, gene = Symbol) |>
   arrange(gene)
 

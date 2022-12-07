@@ -61,6 +61,7 @@ library(UpSetR)
 library(plotly)
 library(scales)
 library(patchwork)
+library(gtools)
 
 # colors
 library(AachenColorPalette)
@@ -151,7 +152,10 @@ res |>
   arrange(NES) |>
   group_by(signature, group, sign(NES)) |>
   slice_max(abs(NES), n = 10) |>
-  ggplot(aes(x = NES, y = reorder_within(geneset, NES, signature), fill = NES)) +
+  ggplot(aes(
+    x = NES, y = reorder_within(geneset, NES, signature),
+    fill = NES
+  )) +
   geom_col() +
   scale_y_reordered() +
   # theme(axis.text.y = element_blank()) +
@@ -195,7 +199,9 @@ genes <- genes |>
   )) |>
   drop_na(family) |>
   mutate(phase = case_when(
-    family %in% c("CYP", "FMO", "MAO", "COX", "NQOR", "ADH/ALDH", "EPH", "DH") ~ "Phase I",
+    family %in% c(
+      "CYP", "FMO", "MAO", "COX", "NQOR", "ADH/ALDH", "EPH", "DH"
+    ) ~ "Phase I",
     family %in% c("GST", "UGT", "SULT", "NAT", "MT") ~ "Phase II",
   )) |>
   mutate(
@@ -419,7 +425,7 @@ limma_result |>
     fill = logFC
   )) +
   geom_col() +
-  facet_rep_grid(geneset~contrast, scales = "free_y") +
+  facet_rep_grid(geneset ~ contrast, scales = "free_y") +
   my_theme(grid = "x") +
   scale_fill_gradient2(
     low = aachen_color("blue"), mid = "white",
@@ -428,6 +434,130 @@ limma_result |>
   labs(y = NULL) +
   theme(axis.text.y = element_text(size = 8))
 ```
+
+# Tranlational analysis
+## Translation of human genes to mouse genes
+```{r gene-translation}
+gene_mapping <- readRDS(here("data/annotation/gene_id_annotation.rds")) |>
+  distinct(symbol_mgi, symbol_hgnc) |>
+  # remove predicted genes that start with Gm followed by digits
+  filter(!str_detect(symbol_mgi, "^Gm\\d+")) |>
+  drop_na()
+
+hs_limma_result <- readRDS(here("data/meta-mouse-vs-human/limma_result.rds")) |>
+  rename(symbol_hgnc = gene) |>
+  inner_join(gene_mapping, by = "symbol_hgnc")
+
+# # example: 1 human gene with multiple mouse genes
+# hs_limma_result |>
+#   group_by(symbol_hgnc, contrast, phenotype, source) |>
+#   filter(n() > 1) |>
+#   ungroup()
+#
+# hs_limma_result |>
+#   filter(symbol_hgnc == "CYP2A6")
+#
+# # example: 1 mouse genes with multiple human genes
+# hs_limma_result |>
+#   group_by(symbol_mgi, contrast, phenotype, source) |>
+#   filter(n() > 1) |>
+#   ungroup()
+#
+# hs_limma_result |>
+#   filter(symbol_mgi == "Cyp2a5")
+
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  select(symbol_mgi = gene, geneset = family) |>
+  mutate(class = "metabolism")
+
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds")) |>
+  select(symbol_mgi = gene, geneset = side) |>
+  mutate(class = "carrier")
+
+genesets <- bind_rows(metabolic_genes, carrier_genes)
+
+
+x <- hs_limma_result |>
+  # join already now with genesets to eventually filter out mouse genes
+  # that map to a single human gene but are not of interest for the downstream
+  # analysis
+  inner_join(genesets, by = "symbol_mgi") |>
+  # 1 human gene with multiple mouse genes
+  group_by(symbol_hgnc, geneset, class, contrast, phenotype, source) |>
+  slice(1) |>
+  ungroup() |>
+  # 1 mouse gene with multiple human genes
+  group_by(gene = symbol_mgi, geneset, class, contrast, phenotype, source) |>
+  summarise(logFC = mean(logFC), statistic = mean(statistic), .groups="drop")
+```
+
+## Correlation of mouse-human-genes
+```{r enrichment-in-human-diseases, message=FALSE, warning=FALSE, results="asis"}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  select(geneset = family, gene) |>
+  mutate(class = "metabolism")
+
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds")) |>
+  select(gene, geneset = side) |>
+  mutate(class = "carrier")
+
+genesets <- bind_rows(metabolic_genes, carrier_genes)
+
+
+mm_limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m") |>
+  inner_join(genesets, by = "gene") |>
+  select(gene, mm_logFC = logFC, mm_statistic = statistic, geneset, fdr)
+
+cor_test <- function(data, ...) {
+  if (nrow(data) >= 5) {
+    r <- cor.test(data$hs_logFC, data$mm_logFC, method="pearson") |>
+      tidy()
+    return(r)
+  } else {
+    return(as_tibble(NULL))
+  }
+}
+
+corr <- x |>
+  rename(hs_logFC = logFC, hs_statistic = statistic) |>
+  inner_join(mm_limma_result, by = c("gene", "geneset")) |>
+  unite(key, contrast, phenotype, source, sep = " | ") |>
+  nest(data = -c(key, geneset)) %>% # dplyr pipe here on purpose
+  mutate(r = pmap(., .f = cor_test)) |>
+  unnest(r) |>
+  group_by(geneset) |>
+  mutate(corr_fdr = p.adjust(p.value, method = "fdr")) |>
+  ungroup()
+
+# heatmap of correlations
+corr |>
+  mutate(label = stars.pval(corr_fdr)) |>
+  ggplot(aes(x = geneset, y = key, fill = estimate)) +
+  geom_tile() +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red"), na.value = "yellow"
+  ) +
+  geom_text(aes(label = label), vjust = 1) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+p <- corr |>
+  filter(corr_fdr <= 0.1) |>
+  arrange(p.value) |>
+  unnest(data) |>
+  ggplot(aes(x = hs_logFC, y = mm_logFC, label = gene)) +
+  geom_point(size=1, aes(color=fdr<0.05)) +
+  geom_hline(yintercept = 0) +
+  geom_vline(xintercept = 0) +
+  facet_rep_wrap(~ geneset + key, ncol = 2, scales="free") +
+  geom_smooth(method = "lm", se = FALSE, size=0.5) +
+  my_theme() +
+  labs(x = "Human logFC", y = "Mouse logFC")
+
+ggplotly(p, height = 2500)
+```
+
 
 # Trajectories
 ## Metabolic genes
