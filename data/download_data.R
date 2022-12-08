@@ -3,13 +3,11 @@
 
 # This script downloads data required for analyses
 
-
-
-# Download data from Zenodo (doi: 10.5281/zenodo.7242764) -----------------
-
 library(here)
 library(purrr)
 
+
+# Download data from Zenodo (doi: 10.5281/zenodo.7242764) -----------------
 # set timeout to 10 mins i.e. 600 seconds
 options(timeout = 600)
 
@@ -37,7 +35,9 @@ download.file(
 output_files <- c(
   "output/mouse-chronic-ccl4/limma_result.rds",
   "output/mouse-chronic-ccl4/stem_result.rds",
-  "output/mouse-chronic-ccl4/normalized_expression.rds"
+  "output/mouse-chronic-ccl4/normalized_expression.rds",
+  "output/meta-mouse-vs-human/limma_result.rds",
+  "output/meta-mouse-vs-human/meta_data.rds"
 )
 unzip(here("data/output.zip"), files = output_files, exdir = here("data"))
 
