@@ -17,15 +17,12 @@ base_url <- "https://zenodo.org/record/7242764/files"
 download.file(file.path(base_url, "data.zip?download=1"), here("data/data.zip"))
 data_files <- c(
   "data/mouse-chronic-ccl4/meta_data.rds",
-  "data/mouse-chronic-ccl4/count_matrix.rds"
+  "data/mouse-chronic-ccl4/count_matrix.rds",
+  "data/meta-mouse-vs-human/contrast_annotation.rds",
+  "data/annotation/gene_id_annotation.rds"
 )
 
 unzip(here("data/data.zip"), files = data_files, exdir = here())
-unzip(
-  here("data/data.zip"),
-  files = c("data/annotation/gene_id_annotation.rds"),
-  exdir = here()
-)
 
 # download output folder and extract certain files
 download.file(
