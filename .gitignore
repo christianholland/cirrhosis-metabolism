@@ -16,5 +16,7 @@ data/**/*.xlsx
 data/**/*.html
 output/**/*.rds
 output/**/*.html
+output/**/*.csv
 figures/**/*.pdf
 figures/**/*.pptx
+
