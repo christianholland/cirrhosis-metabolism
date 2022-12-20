@@ -218,3 +218,31 @@ stem_result |>
   datatable()
 ```
 
+## Export data
+### Expression values
+```{r export-expression-values}
+genes <- readRDS(here(output_path, "genes_of_interest.rds"))
+
+readRDS(here("data/mouse-chronic-ccl4/count_matrix.rds")) %>% 
+  filter(rownames(.) %in% genes$gene) |> 
+  write.csv(here(output_path, "count_matrix.csv"))
+
+readRDS(here("data/mouse-chronic-ccl4/normalized_expression.rds")) %>%
+  data.frame() %>% 
+  filter(rownames(.) %in% genes$gene) |> 
+  write.csv(here(output_path, "normalized_expression.csv"))
+
+readRDS(here("data/mouse-chronic-ccl4/meta_data.rds")) |> 
+  write_csv(here(output_path, "sample_annotation.csv"))
+```
+
+### LogFC
+```{r export-logFC}
+genes <- readRDS(here(output_path, "genes_of_interest.rds"))
+
+readRDS(here("data/mouse-chronic-ccl4/limma_result.rds")) |> 
+  filter(gene %in% genes$gene) |> 
+  filter(contrast_reference %in% c("ccl4", "pure_ccl4")) |> 
+  write_csv(here(output_path, "differentially_expressed_genes.csv"))
+```
+

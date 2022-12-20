@@ -52,6 +52,7 @@ library(tidyverse)
 # statistics
 library(fgsea)
 library(msigdf)
+library(survcomp)
 
 # plotting
 library(cowplot)
@@ -78,6 +79,10 @@ library(devtools)
 # other
 library(htmltools)
 
+# source scripts
+source(here("code/plots.R"))
+
+# source scripts from external projects
 base_url <- "https://raw.githubusercontent.com/saezlab/liver-disease-atlas"
 source_url(file.path(base_url, "master", "code", "utils-plots.R"))
 source_url(file.path(base_url, "master", "code", "utils-utils.R"))
@@ -95,9 +100,13 @@ output_path <- "output/mouse-chronic-ccl4"
 # limit samples to 12 months
 meta_pure_ccl4 <- readRDS(here(data_path, "meta_data.rds")) |>
   filter(time == 12)
-expr_pure_ccl4 <- readRDS(here(data_path, "normalized_expression.rds"))[, meta_pure_ccl4$sample]
+expr_pure_ccl4 <- readRDS(
+  here(data_path, "normalized_expression.rds")
+)[, meta_pure_ccl4$sample]
 
 pca_result <- do_pca(expr_pure_ccl4, meta_pure_ccl4, top_n_var_genes = 1000)
+
+saveRDS(pca_result, here(output_path, "pca_result.rds"))
 
 p1 <- plot_pca(pca_result, feature = "treatment") +
   my_theme() +
@@ -140,8 +149,13 @@ mat <- limma_result |>
   pivot_wider(names_from = contrast, values_from = logFC) |>
   data.frame(row.names = 1)
 
-res <- run_gsea(mat, genesets, options = list(minSize = 10), tidy = TRUE) |>
+res <- run_gsea(mat, genesets,
+  options = list(minSize = 10), tidy = TRUE,
+  nperm = 10000
+) |>
   mutate(group = if_else(str_detect(geneset, "GOBP"), "GO", "KEGG"))
+
+saveRDS(res, here(output_path, "enrichment_result.rds"))
 
 res |>
   filter(padj <= 0.2) |>
@@ -417,8 +431,12 @@ metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
 
 genesets <- bind_rows(carrier_genes, metabolic_genes)
 
-limma_result |>
-  inner_join(genesets, by = "gene") |>
+degs <- limma_result |>
+  inner_join(genesets, by = "gene")
+
+saveRDS(degs, here(output_path, "genesets_degs.rds"))
+
+degs |>
   group_by(contrast, geneset, sign(logFC)) |>
   ggplot(aes(
     x = logFC, y = fct_reorder(gene, logFC),
@@ -464,7 +482,15 @@ hs_limma_result <- readRDS(here("data/meta-mouse-vs-human/limma_result.rds")) |>
 #   ungroup()
 #
 # hs_limma_result |>
-#   filter(symbol_mgi == "Cyp2a5")
+#   # filter(symbol_mgi == "Rfc2") |>
+#   filter(symbol_mgi == "Cyp2a5") |>
+#   filter(contrast == "advanced_vs_mild") |>
+#   group_by(gene = symbol_mgi, contrast, phenotype, source) |>
+#   summarise(logFC = mean(logFC), statistic = mean(statistic),
+#             combined_pval=combine.test(pval ,method="fisher"),
+#             pval = if_else(n() == 1, pval[1], NA_real_),
+#             fdr = combine.test(fdr, method="fisher"),
+#             .groups="drop")
 
 metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
   select(symbol_mgi = gene, geneset = family) |>
@@ -488,7 +514,14 @@ x <- hs_limma_result |>
   ungroup() |>
   # 1 mouse gene with multiple human genes
   group_by(gene = symbol_mgi, geneset, class, contrast, phenotype, source) |>
-  summarise(logFC = mean(logFC), statistic = mean(statistic), .groups="drop")
+  summarise(
+    hs_logFC = mean(logFC), hs_statistic = mean(statistic),
+    hs_combined_pval = combine.test(pval, method = "fisher"),
+    hs_pval = if_else(n() == 1, pval[1], NA_real_),
+    hs_combined_fdr = combine.test(fdr, method = "fisher"),
+    hs_fdr = if_else(n() == 1, fdr[1], NA_real_),
+    .groups = "drop"
+  )
 ```
 
 ## Correlation of mouse-human-genes
@@ -507,11 +540,14 @@ genesets <- bind_rows(metabolic_genes, carrier_genes)
 mm_limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
   filter(contrast == "pure_ccl_12m_vs_0m") |>
   inner_join(genesets, by = "gene") |>
-  select(gene, mm_logFC = logFC, mm_statistic = statistic, geneset, fdr)
+  select(gene,
+    mm_logFC = logFC, mm_statistic = statistic, geneset,
+    mm_fdr = fdr
+  )
 
 cor_test <- function(data, ...) {
   if (nrow(data) >= 5) {
-    r <- cor.test(data$hs_logFC, data$mm_logFC, method="pearson") |>
+    r <- cor.test(data$hs_logFC, data$mm_logFC, method = "pearson") |>
       tidy()
     return(r)
   } else {
@@ -520,15 +556,28 @@ cor_test <- function(data, ...) {
 }
 
 corr <- x |>
-  rename(hs_logFC = logFC, hs_statistic = statistic) |>
   inner_join(mm_limma_result, by = c("gene", "geneset")) |>
+  mutate(sig = case_when(
+    hs_fdr <= 0.05 & mm_fdr <= 0.05 ~ "Both species",
+    hs_fdr <= 0.05 & mm_fdr > 0.05 ~ "Human only",
+    hs_fdr > 0.05 & mm_fdr <= 0.05 ~ "Mouse only",
+    hs_fdr > 0.05 & mm_fdr > 0.05 ~ "Neither human nor mouse",
+    TRUE ~ "Missing human data"
+  )) |>
+  mutate(sig = factor(sig, levels = c(
+    "Both species", "Mouse only",
+    "Human only", "Neither human nor mouse",
+    "Missing human data"
+  ))) |>
   unite(key, contrast, phenotype, source, sep = " | ") |>
-  nest(data = -c(key, geneset)) %>% # dplyr pipe here on purpose
+  nest(data = -c(key, geneset, class)) %>% # dplyr pipe here on purpose
   mutate(r = pmap(., .f = cor_test)) |>
   unnest(r) |>
   group_by(geneset) |>
   mutate(corr_fdr = p.adjust(p.value, method = "fdr")) |>
   ungroup()
+
+saveRDS(corr, here(output_path, "correlations.rds"))
 
 # heatmap of correlations
 corr |>
@@ -547,13 +596,14 @@ p <- corr |>
   arrange(p.value) |>
   unnest(data) |>
   ggplot(aes(x = hs_logFC, y = mm_logFC, label = gene)) +
-  geom_point(size=1, aes(color=fdr<0.05)) +
+  geom_point(size = 1, aes(color = sig)) +
   geom_hline(yintercept = 0) +
   geom_vline(xintercept = 0) +
-  facet_rep_wrap(~ geneset + key, ncol = 2, scales="free") +
-  geom_smooth(method = "lm", se = FALSE, size=0.5) +
+  facet_rep_wrap(~ geneset + key, ncol = 2, scales = "free") +
+  geom_smooth(method = "lm", se = FALSE, size = 0.5, formula = y ~ x) +
   my_theme() +
   labs(x = "Human logFC", y = "Mouse logFC")
+
 
 ggplotly(p, height = 2500)
 ```
@@ -621,7 +671,8 @@ stem_result |>
 ```
 
 ## Carrier genes
-Only genes that are differentially expressed in **at least** one timepoint are considered.
+Only genes that are differentially expressed in **at least** one timepoint are 
+considered.
 ```{r trajectories-of-carrier-genes}
 carrier_genes <- readRDS(here(output_path, "carrier_genes.rds"))
 
@@ -668,57 +719,272 @@ stem_result |>
   datatable()
 ```
 
+# Publication figures
+```{r}
+fz <- 9
+```
 
-<!-- ## Pericentral genes -->
-<!-- The list of pericentral genes is taken from one of our previous studies -->
-<!-- [@Ghallab2019]. Only genes that are differentially expressed in **at least** one timepoint are considered. -->
-<!-- ```{r trajectories-of-metabolic-genes-with-pericentral-location} -->
-<!-- pericentral_genes <- readRDS(here("data/annotation/pericentral_genes.rds")) -->
+## Figure 1
+### PCA
+```{r pca-plot}
+pca_result <- readRDS(here(output_path, "pca_result.rds"))
 
-<!-- # find genes that are differentially expressed in at least one -->
-<!-- # timepoint -->
-<!-- limma_result <- readRDS(here(data_path, "limma_result.rds")) |> -->
-<!--   filter(contrast_reference == "pure_ccl4") |> -->
-<!--   mutate(time = parse_number(as.character(contrast))) |> -->
-<!--   select(gene, pval, fdr, regulation, time) -->
+# limit pca ratio to one decimal digit
+pca_result$var <- round(pca_result$var, 1)
 
-<!-- degs <- limma_result |> -->
-<!--   inner_join(pericentral_genes, by = "gene") |> -->
-<!--   filter(regulation != "ns") |> -->
-<!--   distinct(zonation, gene) -->
+pca_result$coords <- pca_result$coords |>
+  mutate(treatment = str_to_title(treatment))
 
-<!-- stem_result <- readRDS(here(data_path, "stem_result.rds")) |> -->
-<!--   inner_join(degs, by = "gene") |> -->
-<!--   left_join(limma_result, by = c("gene", "time")) -->
+p1 <- plot_pca(pca_result, feature = "treatment") +
+  scale_color_manual(
+    values = aachen_color(c("turquoise", "orange")),
+    labels = c(expression(paste(CCl[4])), expression(paste(Oil))),
+    name = "Treatment"
+  ) +
+  theme(legend.text.align = 0) +
+  my_theme(fsize = fz) +
+  plot_annotation(
+    title = "A",
+    theme = theme(plot.title = element_text(size = fz + 2))
+  )
 
-<!-- p <- stem_result |> -->
-<!--   ggplot(aes( -->
-<!--     x = time, y = value, group = gene, pval = pval, fdr = fdr, -->
-<!--     color = family -->
-<!--   )) + -->
-<!--   geom_hline(yintercept = 0) + -->
-<!--   geom_line(alpha = 0.5) + -->
-<!--   geom_point(size = 0.25) + -->
-<!--   scale_x_continuous(breaks = unique(stem_result$time)) + -->
-<!--   scale_color_manual(values = brewer.pal(9, "Set1")) + -->
-<!--   labs(x = "Time", y = "logFC") + -->
-<!--   theme( -->
-<!--     strip.text = element_text(angle = 0, hjust = 0), -->
-<!--     legend.position = "top" -->
-<!--   ) + -->
-<!--   facet_rep_wrap(~profile, scales = "free", ncol = 4) + -->
-<!--   my_theme(grid = "y") + -->
-<!--   ggtitle(label = "Metabolic genes with pericentral location") -->
+ggsave(here("figures/pca_plot.pdf"), p1, width = 3.5 * 1.2, height = 3.5)
+```
 
-<!-- ggplotly(p, height = ceiling(length(unique(p$data$profile)) / 4) * 200 + 100) -->
+### Enrichemnt
+```{r "enrichment-plot"}
+res <- readRDS(here(output_path, "enrichment_result.rds")) |>
+  filter(signature == "pure_ccl_12m_vs_0m") |>
+  mutate(geneset = str_remove(geneset, "GOBP_|KEGG_")) |>
+  mutate(geneset = str_replace_all(geneset, "_", " ")) |>
+  mutate(geneset = str_to_title(geneset))
 
-<!-- stem_result |> -->
-<!--   distinct(gene, family, phase, profile) |> -->
-<!--   select(phase, family, profile, gene) |> -->
-<!--   arrange(profile, family, gene) |> -->
-<!--   datatable() -->
-<!-- ``` -->
+data_go <- res |>
+  filter(group == "GO") |>
+  filter(padj <= 0.2) |>
+  mutate(stars = gtools::stars.pval(padj)) |>
+  arrange(NES) |>
+  group_by(signature, group, sign(NES)) |>
+  slice_max(abs(NES), n = 10) |>
+  ungroup()
+
+p_go <- plot_top_enrichment_results(data_go, class = "GO terms", fontsize = fz)
+
+ggsave(here("figures/enriched_go_terms.pdf"), p_go, width = 8, height = 4)
 
 
+data_kegg <- res |>
+  filter(group == "KEGG") |>
+  filter(padj <= 0.2) |>
+  mutate(stars = gtools::stars.pval(padj)) |>
+  arrange(NES) |>
+  group_by(signature, group, sign(NES)) |>
+  slice_max(abs(NES), n = 10) |>
+  ungroup()
+
+p_kegg <- plot_top_enrichment_results(data_kegg,
+  class = "KEGG pathways",
+  fontsize = fz
+)
+
+ggsave(here("figures/enriched_kegg_pathways.pdf"), p_kegg,
+  width = 8,
+  height = 4
+)
+```
+
+### Top DEGs
+```{r plot-top-degs}
+degs <- readRDS(here(output_path, "genesets_degs.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m") |>
+  mutate(geneset_label = case_when(
+    geneset == "ADH/ALDH" ~ "Alcohol- and aldehyddehydrogenases (ADH/ALDH)",
+    geneset == "CYP" ~ "Cytochrome p450 dependent monooxygenases (CYP)",
+    geneset == "DH" ~ "Dihydrodioldehydrogenases (DH)",
+    geneset == "EPH" ~ "Epoxidhydrolases (EPH)",
+    geneset == "FMO" ~ "Flavin dependent monooxygenases (FMO)",
+    geneset == "GST" ~ "Glutathiontransferases (GST)",
+    geneset == "MAO" ~ "Monoamine oxidases (MAO)",
+    geneset == "MT" ~ "Methyltransferases (MT)",
+    geneset == "NAT" ~ "Acetyltransferases (NAT)",
+    geneset == "SULT" ~ "Sulfotransferases (SULT)",
+    geneset == "UGT" ~ "UDP-glucuronosyltransferases (UGT)",
+    geneset == "Blood" ~ "Blood side carrier",
+    geneset == "Canalicular" ~ "Canalicular side carrier",
+    TRUE ~ as.character(geneset)
+  ))
+
+deg_plots <- degs |>
+  mutate(stars = gtools::stars.pval(fdr)) |>
+  arrange(logFC) |>
+  group_by(geneset, sign(logFC)) |>
+  slice_max(abs(logFC), n = 10) |>
+  add_count() |>
+  ungroup() |>
+  group_by(geneset) |>
+  mutate(n = max(n)) |>
+  ungroup() |>
+  nest(data = -c(geneset, geneset_label, n, phase)) %>%
+  mutate(p = pmap(., .f = plot_top_deg_genes, fontsize = 9))
+
+deg_plots %>%
+  mutate(pp = pmap(., .f = function(p, geneset, n, ...) {
+    heights <- list(
+      Blood = 2.05, Canalicular = 1.75, `ADH/ALDH` = 2.35, CYP = 3.1, DH = 1.55,
+      EPH = 1.75, FMO = 1.75, GST = 2.55, MAO = 1.55, MT = 2.3, NAT = 2.3,
+      SULT = 2.55, UGT = 2.35
+    )
+
+    if (geneset == "Blood") {
+      p <- p + plot_annotation(
+        title = "D   Carrier",
+        theme = theme(plot.title = element_text(size = fz + 2))
+      )
+    } else if (geneset == "ADH/ALDH") {
+      p <- p + plot_annotation(
+        title = "B   Phase I Metabolism",
+        theme = theme(plot.title = element_text(size = fz + 2))
+      )
+    } else if (geneset == "UGT") {
+      p <- p + plot_annotation(
+        title = "C   Phase II Metabolism",
+        theme = theme(plot.title = element_text(size = fz + 2))
+      )
+    }
+
+    # height = 1.05 + 0.2*n
+    ggsave(
+      filename = here(
+        str_glue("figures/{str_replace(geneset, '/', '_')}.pdf")
+      ),
+      # filename = str_glue("~/Documents/figures/{str_replace(geneset, '/', '_')}.pdf"),
+      plot = p,
+      width = 3.5,
+      height = heights[[as.character(geneset)]]
+    )
+    return(as_tibble(NULL))
+  }))
+```
+
+## Figure 2
+### Single correlations
+```{r single-correlation-plots}
+corr <- readRDS(here(output_path, "correlations.rds")) |>
+  filter(corr_fdr <= 0.1) |>
+  arrange(p.value) |>
+  unnest(data) |>
+  mutate(anno = str_glue(
+    "  r={round(estimate, 2)}\nFDR={signif(corr_fdr, digits=2)}"
+  ))
+
+p1 <- corr |>
+  filter(key == "stage_6_vs_0 | nafld | hoang" & geneset == "DH") |>
+  plot_correlation() +
+  labs(
+    x = "Human logFC (NAFLD Stage 6)",
+    y = expression(paste("Mouse logFC (12 months ", CCl[4], ")", sep = "")),
+    subtitle = "Dihydrodioldehydrogenases (DH)"
+  ) +
+  plot_annotation(
+    title = "A",
+    theme = theme(plot.title = element_text(size = fz + 2))
+  )
+
+ggsave("~/Documents/figures/correlation_1.pdf", p1, width = 3.5, height = 3.5)
+
+p2 <- corr |>
+  filter(key == "nash_vs_ctrl | omni | hampe14" & geneset == "NAT") |>
+  plot_correlation() +
+  labs(
+    x = "Human logFC (NASH)",
+    y = expression(paste("Mouse logFC (12 months ", CCl[4], ")", sep = "")),
+    subtitle = "Acetyltransferases (NAT)"
+  ) +
+  plot_annotation(
+    title = "B",
+    theme = theme(plot.title = element_text(size = fz + 2))
+  )
+
+ggsave("~/Documents/figures/correlation_2.pdf", p2, width = 3.5, height = 3.5)
+
+p3 <- corr |>
+  filter(key == "nafld_vs_ctrl | omni | hampe14" & geneset == "ADH/ALDH") |>
+  plot_correlation() +
+  labs(
+    x = "Human logFC (NAFLD)",
+    y = expression(paste("Mouse logFC (12 months ", CCl[4], ")", sep = "")),
+    subtitle = "Alcohol- and aldehyddehydrogenases (ADH/ALDH)"
+  ) +
+  plot_annotation(
+    title = "C",
+    theme = theme(plot.title = element_text(size = fz + 2))
+  )
+
+ggsave("~/Documents/figures/correlation_3.pdf", p3, width = 3.5, height = 3.5)
+
+
+p1 / p2 / p3
+```
+
+### Correlation heatmap
+```{r correlation-heatmap}
+annotation <- readRDS(
+  here("data/meta-mouse-vs-human/contrast_annotation.rds")
+) |>
+  select(contrast, phenotype, source, label, disease)
+corr <- readRDS(here(output_path, "correlations.rds")) |>
+  separate(key, into = c("contrast", "phenotype", "source"), sep = " [|] ") |>
+  left_join(annotation, by = c("contrast", "phenotype", "source")) |>
+  complete(geneset, label, fill = list(estimate = NA_real_)) |>
+  mutate(y = str_c(label, " | ", geneset)) |>
+  mutate(x = str_c("CCl4 12 months| ", geneset)) |>
+  mutate(highlight = case_when(
+    geneset == "ADH/ALDH" & contrast == "nafld_vs_ctrl" & phenotype == "omni" &
+      source == "hampe14" ~ "yes",
+    geneset == "DH" & contrast == "stage_6_vs_0" & phenotype == "nafld" &
+      source == "hoang" ~ "yes",
+    geneset == "NAT" & contrast == "nash_vs_ctrl" & phenotype == "omni" &
+      source == "hampe14" ~ "yes",
+    TRUE ~ "no"
+  )) |>
+  mutate(stars = stars.pval(corr_fdr))
+
+# heatmap of correlations
+p4 <- corr |>
+  ggplot(aes(x = geneset, y = label, fill = estimate)) +
+  geom_tile(width = 0.95, height = 0.95) +
+  geom_tile(
+    data = filter(corr, highlight == "yes"), fill = NA,
+    color = aachen_color("red"), size = 0.5
+  ) +
+  scale_fill_gradient2(
+    low = aachen_color("orange"),
+    mid = "white",
+    high = aachen_color("green"),
+    na.value = aachen_color("black25"),
+    breaks = c(-1, 0, 1), labels = c(-1, 0, 1),
+    limits = c(-1, 1)
+  ) +
+  scale_color_manual(values = c("white", aachen_color("red"))) +
+  geom_text(
+    data = filter(corr, stars != "."), aes(label = stars),
+    vjust = 1, size = fz / (14 / 5)
+  ) +
+  geom_text(
+    data = filter(corr, stars == "."), aes(label = stars),
+    vjust = 0, size = fz / (14 / 5)
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(x = "Mouse", y = "Human") +
+  guides(fill = guide_colorbar("r"), color = "none") +
+  theme(axis.line = element_blank(), axis.ticks = element_blank()) +
+  my_theme(grid = "no", fsize = fz) +
+  plot_annotation(
+    title = "D",
+    theme = theme(plot.title = element_text(size = fz + 2))
+  )
+
+ggsave("~/Documents/figures/heatmap.pdf", p4, width = 5.3, height = 4)
+```
 
 # References
