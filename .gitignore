@@ -16,3 +16,5 @@ data/**/*.xlsx
 data/**/*.html
 output/**/*.rds
 output/**/*.html
+figures/**/*.pdf
+figures/**/*.pptx
