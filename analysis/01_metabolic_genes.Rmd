@@ -1,0 +1,539 @@
+---
+title: "Expression of metabolic and carrier genes in a chronic CCl4 mouse model"
+site: workflowr::wflow_site
+bibliography: ../data/references/references.bib
+output:
+  workflowr::wflow_html:
+    toc: true
+editor_options:
+  chunk_output_type: console
+---
+
+```{r, setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = FALSE
+)
+```
+
+
+# Libraries and sources
+These libraries and sources are used for this analysis.
+```{r libs-and-src, message=FALSE, warning=FALSE, cache=FALSE, echo=TRUE}
+# data wrangling
+library(tidyverse)
+
+# statistics
+library(fgsea)
+library(msigdf)
+
+# plotting
+library(cowplot)
+library(lemon)
+library(tidytext)
+library(UpSetR)
+library(plotly)
+library(scales)
+library(patchwork)
+library(gtools)
+
+# colors
+library(AachenColorPalette)
+library(RColorBrewer)
+
+# display tables
+library(DT)
+library(knitr)
+
+# development helpers
+library(here)
+library(devtools)
+
+# other
+library(htmltools)
+
+# source scripts
+source(here("code/plots.R"))
+
+# source scripts from external projects
+base_url <- "https://raw.githubusercontent.com/saezlab/liver-disease-atlas"
+source_url(file.path(base_url, "master", "code", "utils-plots.R"))
+source_url(file.path(base_url, "master", "code", "utils-utils.R"))
+```
+
+Definition of global variables that are used throughout this analysis.
+```{r analysis-specific-params, cache=FALSE}
+data_path <- "data/mouse-chronic-ccl4"
+output_path <- "output/mouse-chronic-ccl4"
+```
+
+# Descriptive data analysis
+## PCA plots
+```{r pca-plots, fig.height=3}
+# limit samples to 12 months
+meta_pure_ccl4 <- readRDS(here(data_path, "meta_data.rds")) |>
+  filter(time == 12)
+expr_pure_ccl4 <- readRDS(
+  here(data_path, "normalized_expression.rds")
+)[, meta_pure_ccl4$sample]
+
+pca_result <- do_pca(expr_pure_ccl4, meta_pure_ccl4, top_n_var_genes = 1000)
+
+saveRDS(pca_result, here(output_path, "pca_result.rds"))
+
+p1 <- plot_pca(pca_result, feature = "treatment") +
+  my_theme() +
+  ggtitle("CCl4 vs Oil")
+
+# limit samples to 0 and 12 months
+meta <- readRDS(here(data_path, "meta_data.rds")) |>
+  filter(treatment != "oil") |>
+  filter(time %in% c(0, 12))
+expr <- readRDS(here(data_path, "normalized_expression.rds"))[, meta$sample]
+
+pca_result <- do_pca(expr, meta, top_n_var_genes = 1000)
+
+p2 <- plot_pca(pca_result, feature = "treatment") +
+  my_theme() +
+  ggtitle("CCl4 vs 0")
+
+p1 + p2
+```
+
+## Enrichment analysis
+```{r enrichment, warning=FALSE, fig.height=20, fig.width=10}
+go_terms <- msigdf.mouse |>
+  filter(category_subcode == "go.bp") |>
+  select(geneset, gene = mouse.symbol) |>
+  mutate(group = "go")
+
+kegg_pathways <- msigdf.mouse |>
+  filter(category_subcode == "cp.kegg") |>
+  select(geneset, gene = mouse.symbol) |>
+  mutate(group = "go")
+
+genesets <- bind_rows(go_terms, kegg_pathways)
+
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast %in% c("pure_ccl_12m_vs_0m", "ccl_12m_vs_0m"))
+
+mat <- limma_result |>
+  select(gene, contrast, logFC) |>
+  pivot_wider(names_from = contrast, values_from = logFC) |>
+  data.frame(row.names = 1)
+
+res <- run_gsea(mat, genesets,
+  options = list(minSize = 10), tidy = TRUE,
+  nperm = 10000
+) |>
+  mutate(group = if_else(str_detect(geneset, "GOBP"), "GO", "KEGG"))
+
+saveRDS(res, here(output_path, "enrichment_result.rds"))
+
+res |>
+  filter(padj <= 0.2) |>
+  select(signature, geneset, pval, padj, ES, NES) |>
+  datatable()
+
+res |>
+  arrange(NES) |>
+  group_by(signature, group, sign(NES)) |>
+  slice_max(abs(NES), n = 10) |>
+  ggplot(aes(
+    x = NES, y = reorder_within(geneset, NES, signature),
+    fill = NES
+  )) +
+  geom_col() +
+  scale_y_reordered() +
+  # theme(axis.text.y = element_blank()) +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red")
+  ) +
+  my_theme(grid = "x") +
+  facet_rep_wrap(~ signature + group, scales = "free_y", ncol = 1) +
+  labs(y = NULL)
+```
+
+
+
+# Metabolic genes
+## Annotate metabolic genes
+This table displays all genes that are considered in this analysis
+```{r annotate-genes, echo=TRUE}
+# extract all possible genes
+genes <- readRDS(here(data_path, "count_matrix.rds")) |>
+  rownames_to_column("gene") |>
+  as_tibble() |>
+  select(gene)
+
+genes <- genes |>
+  mutate(family = case_when(
+    str_detect(gene, "^Cyp") ~ "CYP",
+    str_detect(gene, "^Ugt") ~ "UGT",
+    str_detect(gene, "^Fmo") ~ "FMO",
+    str_detect(gene, "^Mao") ~ "MAO",
+    str_detect(gene, "^Cox") ~ "COX",
+    str_detect(gene, "^Adh|Aldh") ~ "ADH/ALDH",
+    str_detect(gene, "^Sult") ~ "SULT",
+    str_detect(gene, "^Nat") ~ "NAT",
+    str_detect(gene, "^Mt") ~ "MT",
+    str_detect(gene, "^Nqor") ~ "NQOR",
+    str_detect(gene, "^Gst") ~ "GST",
+    str_detect(gene, "^Eph") ~ "EPH",
+    str_detect(gene, "^Dh") ~ "DH",
+    TRUE ~ NA_character_
+  )) |>
+  drop_na(family) |>
+  mutate(phase = case_when(
+    family %in% c(
+      "CYP", "FMO", "MAO", "COX", "NQOR", "ADH/ALDH", "EPH", "DH"
+    ) ~ "Phase I",
+    family %in% c("GST", "UGT", "SULT", "NAT", "MT") ~ "Phase II",
+  )) |>
+  mutate(
+    family = as_factor(family),
+    phase = as_factor(phase)
+  ) |>
+  select(phase, family, gene)
+
+saveRDS(genes, here(output_path, "metabolic_genes.rds"))
+
+datatable(genes)
+```
+
+## Number of metabolic genes
+```{r number-of-metabolic-genes}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds"))
+
+metabolic_genes |>
+  count(family, phase) |>
+  ggplot(aes(x = family, y = n)) +
+  geom_col() +
+  facet_rep_wrap(~phase, scales = "free_x") +
+  labs(x = "Gene familiy", y = "Number of genes") +
+  my_theme(grid = "y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+## Fraction of differentially expressed metabolic genes
+```{r fraction-deg-metabolic-genes, results="asis"}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  add_count(family, name = "size")
+
+df <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m") |>
+  inner_join(metabolic_genes, by = "gene")
+
+df |>
+  filter(regulation != "ns") |>
+  count(gene, phase, family, size) |>
+  count(phase, family, size) |>
+  mutate(fraction = n / size) |>
+  arrange(-fraction) |>
+  kable(caption = str_c(
+    "Fraction of gene family members that are differentially expressed"
+  ))
+```
+
+
+## Enrichment analysis
+```{r enrichment-metabolic-genes, warning=FALSE, fig.height=8}
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m")
+
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  select(gene, geneset = family, phase)
+
+mat <- limma_result |>
+  select(gene, contrast, logFC) |>
+  pivot_wider(names_from = contrast, values_from = logFC) |>
+  data.frame(row.names = 1)
+
+res <- run_gsea(mat, metabolic_genes, options = list(minSize = 10), tidy = TRUE)
+
+res |>
+  inner_join(distinct(metabolic_genes, geneset, phase), by = "geneset") |>
+  mutate(signature = as_factor(signature)) |>
+  ggplot(aes(
+    x = reorder_within(geneset, NES, signature), y = NES, fill = NES
+  )) +
+  geom_col() +
+  facet_rep_wrap(~phase, scales = "free_x", nrow = 1) +
+  scale_x_reordered() +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red")
+  ) +
+  labs(x = "Metabolic gene family") +
+  geom_text(
+    aes(label = str_c("p = ", scientific(padj, 3), sep = " "), y = 0.85 * NES),
+    color = "white", position = position_dodge(width = 0), size = 2.5
+  ) +
+  my_theme(grid = "y")
+```
+
+
+# Carrier genes
+## Annotate carrier genes
+```{r carrier-genes}
+# define carrier genes and translate to mgi symbols
+gene_mapping <- readRDS(here("data/annotation/gene_id_annotation.rds")) |>
+  distinct(gene = symbol_mgi, symbol_hgnc)
+
+carrier_genes <- tibble(
+  symbol_hgnc = c(
+    "SLC10A1", "SLCO1B1", "SLC22A1", "SLCO1B3", "SLC22A6", "ABCC4", "ABCC3",
+    "SLC51A", "SLC51B", "ABCB11", "ABCC2", "ABCG2", "ABCG5", "ABCG8", "ATP8B1",
+    "ABCB1", "ABCB4", "SLC47A1"
+  ),
+  side = c(
+    rep("Blood", 9),
+    rep("Canalicular", 9)
+  )
+) |>
+  left_join(gene_mapping, by = "symbol_hgnc") |>
+  distinct(gene, side) |>
+  mutate(side = as_factor(side))
+
+saveRDS(carrier_genes, here(output_path, "carrier_genes.rds"))
+
+datatable(carrier_genes)
+```
+
+## Number of carrier genes
+```{r number-of-carrier-genes}
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds"))
+
+carrier_genes |>
+  count(side) |>
+  ggplot(aes(x = side, y = n)) +
+  geom_col() +
+  labs(x = "Side", y = "Number of genes") +
+  my_theme(grid = "y") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+## Fraction of differentially expressed carrier genes
+```{r fraction-deg-carrier-genes, results="asis"}
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds")) |>
+  add_count(side, name = "size")
+
+df <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m") |>
+  inner_join(carrier_genes, by = "gene")
+
+df |>
+  filter(regulation != "ns") |>
+  count(gene, side, size) |>
+  count(side, size) |>
+  mutate(fraction = n / size) |>
+  arrange(-fraction) |>
+  kable(caption = str_c(
+    "Fraction of gene family members that are differentially expressed"
+  ))
+```
+
+## Enrichment analysis
+```{r enrichment-carrier-genes, warning=FALSE, fig.height=8}
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m")
+
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds")) |>
+  select(gene, geneset = side)
+
+mat <- limma_result |>
+  select(gene, contrast, logFC) |>
+  pivot_wider(names_from = contrast, values_from = logFC) |>
+  data.frame(row.names = 1)
+
+res <- run_gsea(mat, carrier_genes, options = list(minSize = 5), tidy = TRUE)
+
+res |>
+  inner_join(distinct(carrier_genes, geneset), by = "geneset") |>
+  mutate(signature = as_factor(signature)) |>
+  ggplot(aes(
+    x = reorder_within(geneset, NES, signature), y = NES, fill = NES
+  )) +
+  geom_col() +
+  scale_x_reordered() +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red")
+  ) +
+  labs(x = "Metabolic gene family") +
+  geom_text(
+    aes(label = str_c("p = ", scientific(padj, 3), sep = " "), y = 0.85 * NES),
+    color = "white", position = position_dodge(width = 0), size = 2.5
+  ) +
+  my_theme(grid = "y")
+```
+
+# Overlap of metabolic, carrier and pericentral genes
+```{r gene-overlap}
+pericentral_genes <- readRDS(here("data/annotation/pericentral_genes.rds")) |>
+  rename(category = zonation)
+
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  select(gene, category = family)
+
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds")) |>
+  select(gene, category = side)
+
+df <- bind_rows(pericentral_genes, metabolic_genes, carrier_genes) |>
+  mutate(value = 1) |>
+  pivot_wider(names_from = category, values_from = value, values_fill = 0) |>
+  data.frame(check.names = FALSE)
+
+upset(df, nsets = 20)
+```
+
+# Top differentially expressed metabolic and carrier genes
+## Pure CCl4
+```{r 12-month-deg-pure-ccl4, fig.height = 30}
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast %in% c("pure_ccl_12m_vs_0m", "ccl_12m_vs_0m")) |>
+  filter(regulation != "ns")
+
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds")) |>
+  rename(geneset = side)
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds")) |>
+  rename(geneset = family)
+
+genesets <- bind_rows(carrier_genes, metabolic_genes)
+
+degs <- limma_result |>
+  inner_join(genesets, by = "gene")
+
+saveRDS(degs, here(output_path, "genesets_degs.rds"))
+
+degs |>
+  group_by(contrast, geneset, sign(logFC)) |>
+  ggplot(aes(
+    x = logFC, y = fct_reorder(gene, logFC),
+    fill = logFC
+  )) +
+  geom_col() +
+  facet_rep_grid(geneset ~ contrast, scales = "free_y") +
+  my_theme(grid = "x") +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red")
+  ) +
+  labs(y = NULL) +
+  theme(axis.text.y = element_text(size = 8))
+```
+
+
+# Trajectories
+## Metabolic genes
+Only metabolic genes that are differentially expressed in **at least** one
+timepoint are considered.
+```{r trajectories-of-metabolic-genes, message=FALSE, warning=FALSE, results="asis"}
+metabolic_genes <- readRDS(here(output_path, "metabolic_genes.rds"))
+
+# find genes that are differentially expressed in at least one timepoint
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4") |>
+  mutate(time = parse_number(as.character(contrast))) |>
+  select(gene, pval, fdr, regulation, time)
+
+degs <- limma_result |>
+  filter(regulation != "ns") |>
+  inner_join(metabolic_genes, by = "gene") |>
+  distinct(gene, family, phase)
+
+stem_result <- readRDS(here(data_path, "stem_result.rds")) |>
+  inner_join(degs, by = "gene") |>
+  left_join(limma_result, by = c("gene", "time"))
+
+# plot trajectories for all gene family members separately
+plotlist <- map(unique(degs$family), function(f) {
+  p <- stem_result |>
+    filter(family == {{ f }}) |>
+    ggplot(aes(
+      x = time, y = value, group = gene, color = family, pval = pval,
+      fdr = fdr
+    )) +
+    geom_hline(yintercept = 0) +
+    geom_line(alpha = 0.5) +
+    geom_point(size = 0.25) +
+    scale_x_continuous(breaks = unique(stem_result$time)) +
+    scale_color_manual(values = brewer.pal(9, "Set1")) +
+    labs(x = "Time", y = "logFC") +
+    theme(
+      strip.text = element_text(angle = 0, hjust = 0),
+      legend.position = "none"
+    ) +
+    facet_rep_wrap(~profile, scales = "free", ncol = 4) +
+    my_theme(grid = "y") +
+    ggtitle(label = f)
+
+
+  return(
+    ggplotly(p,
+      height = ceiling(length(unique(p$data$profile)) / 4) * 200 + 100
+    )
+  )
+})
+
+tagList(setNames(plotlist, NULL))
+
+stem_result |>
+  distinct(gene, family, phase, profile) |>
+  select(phase, family, profile, gene) |>
+  arrange(family, profile, gene) |>
+  datatable()
+```
+
+## Carrier genes
+Only genes that are differentially expressed in **at least** one timepoint are 
+considered.
+```{r trajectories-of-carrier-genes}
+carrier_genes <- readRDS(here(output_path, "carrier_genes.rds"))
+
+# find genes that are differentially expressed in at least one
+# timepoint
+limma_result <- readRDS(here(data_path, "limma_result.rds")) |>
+  filter(contrast_reference == "pure_ccl4") |>
+  mutate(time = parse_number(as.character(contrast))) |>
+  select(gene, pval, fdr, regulation, time)
+
+degs <- limma_result |>
+  inner_join(carrier_genes, by = "gene") |>
+  filter(regulation != "ns") |>
+  distinct(side, gene)
+
+stem_result <- readRDS(here(data_path, "stem_result.rds")) |>
+  inner_join(degs, by = "gene") |>
+  left_join(limma_result, by = c("gene", "time"))
+
+p <- stem_result |>
+  ggplot(aes(
+    x = time, y = value, group = gene, pval = pval, fdr = fdr,
+    color = side
+  )) +
+  geom_hline(yintercept = 0) +
+  geom_line(alpha = 0.5) +
+  geom_point(size = 0.25) +
+  scale_x_continuous(breaks = unique(stem_result$time)) +
+  labs(x = "Time", y = "logFC") +
+  theme(
+    strip.text = element_text(angle = 0, hjust = 0),
+    legend.position = "top"
+  ) +
+  facet_rep_wrap(~profile, scales = "free", ncol = 4) +
+  my_theme(grid = "y") +
+  ggtitle(label = "Carrier genes")
+
+ggplotly(p, height = ceiling(length(unique(p$data$profile)) / 4) * 200 + 100)
+
+stem_result |>
+  distinct(gene, side, profile) |>
+  select(side, profile, gene) |>
+  arrange(side, gene) |>
+  datatable()
+```
+
+# References
