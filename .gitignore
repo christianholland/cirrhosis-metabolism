@@ -19,4 +19,7 @@ output/**/*.html
 output/**/*.csv
 figures/**/*.pdf
 figures/**/*.pptx
+tables/**/*.xlsx
+
+analysis/other/*
 
