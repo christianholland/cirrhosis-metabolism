@@ -19,7 +19,8 @@ data_files <- c(
   "data/mouse-chronic-ccl4/meta_data.rds",
   "data/mouse-chronic-ccl4/count_matrix.rds",
   "data/meta-mouse-vs-human/contrast_annotation.rds",
-  "data/annotation/gene_id_annotation.rds"
+  "data/annotation/gene_id_annotation.rds",
+  "data/human-hoang-nafld/meta_data.rds"
 )
 
 unzip(here("data/data.zip"), files = data_files, exdir = here())
@@ -34,8 +35,10 @@ output_files <- c(
   "output/mouse-chronic-ccl4/stem_result.rds",
   "output/mouse-chronic-ccl4/normalized_expression.rds",
   "output/meta-mouse-vs-human/limma_result.rds",
-  "output/meta-mouse-vs-human/meta_data.rds"
+  "output/meta-mouse-vs-human/meta_data.rds",
+  "output/human-hoang-nafld/normalized_expression.rds"
 )
+
 unzip(here("data/output.zip"), files = output_files, exdir = here("data"))
 
 # move extracted files to
