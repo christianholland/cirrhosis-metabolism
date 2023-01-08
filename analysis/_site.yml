@@ -5,6 +5,7 @@ navbar:
   left:
   - text: Home
     href: index.html
+    icon: fas fa-home
   - text: Analysis
     menu:
     - text: "Metabolic genes"
@@ -15,6 +16,14 @@ navbar:
     menu:
     - text: "Figures & tables"
       href: "03_figures_and_tables"
+
+    right:
+  - text: "Get data"
+    href: https://doi.org/10.5281/zenodo.4407207
+    icon: fas fa-database
+  - text: "Source code"
+    icon: fab fa-github
+    href: https://github.com/christianholland/cirrhosis-metabolism
 output:
   workflowr::wflow_html:
     toc: yes
