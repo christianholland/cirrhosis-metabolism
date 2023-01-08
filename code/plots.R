@@ -1,3 +1,6 @@
+# Copyright (c) [2023] [Christian H. Holland]
+# cholland2408@gmail.com
+
 plot_top_enrichment_results <- function(data, class, fontsize = 9) {
   max_nes <- data |>
     slice_max(order_by = abs(NES), n = 1) |>
