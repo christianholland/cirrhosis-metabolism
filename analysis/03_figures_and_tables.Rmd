@@ -32,6 +32,9 @@ library(gtools)
 # colors
 library(AachenColorPalette)
 
+# display tables
+library(DT)
+
 # development helpers
 library(here)
 library(devtools)
@@ -76,11 +79,12 @@ p1 <- plot_pca(pca_result, feature = "treatment") +
     theme = theme(plot.title = element_text(size = fz + 2))
   )
 
+p1
 ggsave(here("figures/pca_plot.pdf"), p1, width = 3.5 * 1.2, height = 3.5)
 ```
 
 ### Top DEGs
-```{r plot-top-degs}
+```{r plot-top-degs, warning=FALSE}
 degs <- readRDS(here("output", "mouse-chronic-ccl4", "genesets_degs.rds")) |>
   filter(contrast == "pure_ccl_12m_vs_0m") |>
   mutate(geneset_label = case_when(
@@ -113,8 +117,11 @@ deg_plots <- degs |>
   nest(data = -c(geneset, geneset_label, n, phase)) %>%
   mutate(p = pmap(., .f = plot_top_deg_genes, fontsize = 9))
 
-deg_plots %>%
-  mutate(pp = pmap(., .f = function(p, geneset, n, ...) {
+deg_plots$p
+
+plots <- pwalk(
+  list(p = deg_plots$p, geneset = deg_plots$geneset, n = deg_plots$n), 
+  .f = function(p, geneset, n, ...) {
     heights <- list(
       Blood = 2.05, Canalicular = 1.75, `ADH/ALDH` = 2.35, CYP = 3.1, DH = 1.55,
       EPH = 1.75, FMO = 1.75, GST = 2.55, MAO = 1.55, MT = 2.3, NAT = 2.3,
@@ -148,8 +155,7 @@ deg_plots %>%
       width = 3.5,
       height = heights[[as.character(geneset)]]
     )
-    return(as_tibble(NULL))
-  }))
+  })
 ```
 
 ## Figure 2
@@ -176,6 +182,7 @@ p1 <- corr |>
     theme = theme(plot.title = element_text(size = fz + 2))
   )
 
+p1
 ggsave(here("figures/correlation_1.pdf"), p1, width = 3.5, height = 3.5)
 
 p2 <- corr |>
@@ -191,6 +198,7 @@ p2 <- corr |>
     theme = theme(plot.title = element_text(size = fz + 2))
   )
 
+p2
 ggsave(here("figures/correlation_2.pdf"), p2, width = 3.5, height = 3.5)
 
 p3 <- corr |>
@@ -206,6 +214,7 @@ p3 <- corr |>
     theme = theme(plot.title = element_text(size = fz + 2))
   )
 
+p3
 ggsave(here("figures/correlation_3.pdf"), p3, width = 3.5, height = 3.5)
 ```
 
@@ -268,11 +277,12 @@ p4 <- corr |>
     theme = theme(plot.title = element_text(size = fz + 2))
   )
 
+p4
 ggsave(here("figures/heatmap.pdf"), p4, width = 5.3, height = 4)
 ```
 
 ### Top DEGs
-```{r plot-top-degs-hs}
+```{r plot-top-degs-hs, warning=FALSE}
 gene_mapping <- readRDS(here("data/annotation/gene_id_annotation.rds")) |>
   distinct(gene = symbol_mgi, symbol_hgnc) |>
   # remove predicted genes that start with Gm followed by digits
@@ -320,8 +330,11 @@ deg_plots_hs <- degs_hs |>
   nest(data = -c(geneset, geneset_label, n)) %>%
   mutate(p = pmap(., .f = plot_top_deg_genes, fontsize = 9))
 
-deg_plots_hs %>%
-  mutate(pp = pmap(., .f = function(p, geneset, n, ...) {
+deg_plots_hs$p
+
+plots_hs <- pwalk(
+  list(p = deg_plots_hs$p, geneset = deg_plots_hs$geneset, n = deg_plots_hs$n),
+  .f = function(p, geneset, n, ...) {
     heights <- list(
       Blood = 1.55, Canalicular = 1.85, `ADH/ALDH` = 2.55, CYP = 3.6, DH = 1.75,
       EPH = 1.75, FMO = 1.59, GST = 1.59, MAO = 1.55, MT = 2.4, NAT = 1.55,
@@ -360,8 +373,7 @@ deg_plots_hs %>%
       width = 3.5,
       height = heights[[as.character(geneset)]]
     )
-    return(as_tibble(NULL))
-  }))
+  })
 ```
 
 # Tables
@@ -372,9 +384,12 @@ genes <- readRDS(here("output/mouse-chronic-ccl4/metabolic_genes.rds")) |>
 carrier <- readRDS(here("output/mouse-chronic-ccl4/carrier_genes.rds")) |>
   select(gene, side)
 
+datatable(genes)
+datatable(carrier)
+
 tibble(sheet_name = c("Metabolic genes", "Carrier genes"), data = list(genes, carrier)) |>
   deframe() |>
-  write.xlsx(here("tables/gene_annotation.xlsx"),
+  write.xlsx(here("tables/metabolic_carrier_genes.xlsx"),
     keepNA = TRUE
   )
 ```

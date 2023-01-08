@@ -45,6 +45,7 @@ library(devtools)
 # source scripts from external projects
 base_url <- "https://raw.githubusercontent.com/saezlab/liver-disease-atlas"
 source_url(file.path(base_url, "master", "code", "utils-plots.R"))
+source_url(file.path(base_url, "master", "code", "utils-utils.R"))
 ```
 
 # Cross species analysis analysis
@@ -206,3 +207,32 @@ p <- corr |>
 
 ggplotly(p, height = 2500)
 ```
+
+## Top differentially expressed metabolic and carrier genes
+```{r top-degs, fig.height = 30}
+degs <- readRDS(here("output/mouse-chronic-ccl4", "translated_hs_limma_result.rds")) |> 
+  filter(contrast == "stage_6_vs_0") |> 
+  select(gene, geneset, class, contrast, phenotype, source, logFC = hs_logFC, 
+         fdr = hs_fdr) |> 
+  assign_deg(fdr_cutoff = 0.2, effect_size_cutoff = log2(1.5)) |> 
+  filter(regulation != "ns")
+
+saveRDS(degs, here("output/mouse-chronic-ccl4/genesets_degs_hs.rds"))
+
+degs |>
+  group_by(contrast, geneset, sign(logFC)) |>
+  ggplot(aes(
+    x = logFC, y = fct_reorder(gene, logFC),
+    fill = logFC
+  )) +
+  geom_col() +
+  facet_rep_grid(geneset ~ contrast, scales = "free_y") +
+  my_theme(grid = "x") +
+  scale_fill_gradient2(
+    low = aachen_color("blue"), mid = "white",
+    high = aachen_color("red")
+  ) +
+  labs(y = NULL) +
+  theme(axis.text.y = element_text(size = 8))
+```
+

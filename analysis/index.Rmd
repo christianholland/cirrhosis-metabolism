@@ -1,6 +1,7 @@
 ---
 title: "Home"
 site: workflowr::wflow_site
+bibliography: ../data/references/references.bib
 output:
   workflowr::wflow_html:
     toc: false
@@ -9,17 +10,17 @@ editor_options:
 ---
 
 # About
-In this project I analyze the expression of genes involved in the metabolism of 
-xenobiotic substances in a mouse model that develops chronic liver disease 
-induced by administration of CCl~4~ for 2, 6 and 12 months [@Holland2021]. In 
-addition I compare their expression in mouse against the expression in patients 
-that suffer from chronic liver disease utilizing a set of publicly patient 
-cohorts with transcriptomic data (see Table 1 in [@Holland2021] for more 
+In this project the expression of genes involved in the metabolism of 
+xenobiotic substances is analyzed in a mouse model that develops chronic liver 
+disease induced by administration of CCl~4~ for 2, 6 and 12 months 
+[@Holland2021]. In addition their expression in mouse is compared against the 
+expression in patients that suffer from chronic liver disease utilizing a set of 
+publicly available patient cohorts (see Table 1 in [@Holland2021] for more 
 details)
 
 The focus is on the following gene families:
 
-* Phase I Metablism
+* Phase I Metabolism
   + Cytochrome p450 dependent monooxygenase (CYP)
   + Flavin dependent monooxygenases (FMO)
   + Monoamine oxidase (MAO)
@@ -38,3 +39,4 @@ The focus is on the following gene families:
   + Blood side
   + Canalicular side
 
+# References
