@@ -32,6 +32,8 @@
 <script src="site_libs/navigation-1.1/tabsets.js"></script>
 <link href="site_libs/highlightjs-9.12.0/textmate.css" rel="stylesheet" />
 <script src="site_libs/highlightjs-9.12.0/highlight.js"></script>
+<link href="site_libs/font-awesome-5.1.0/css/all.css" rel="stylesheet" />
+<link href="site_libs/font-awesome-5.1.0/css/v4-shims.css" rel="stylesheet" />
 
 <link rel="icon" href="https://github.com/workflowr/workflowr-assets/raw/main/img/reproducible.png">
 <!-- Add a small amount of space between sections. -->
@@ -67,6 +69,28 @@ if (window.hljs) {
 
 
 
+<style type="text/css">
+/* for pandoc --citeproc since 2.11 */
+div.csl-bib-body { }
+div.csl-entry {
+  clear: both;
+}
+.hanging div.csl-entry {
+  margin-left:2em;
+  text-indent:-2em;
+}
+div.csl-left-margin {
+  min-width:2em;
+  float:left;
+}
+div.csl-right-inline {
+  margin-left:2em;
+  padding-left:1em;
+}
+div.csl-indent {
+  margin-left: 2em;
+}
+</style>
 
 
 
@@ -253,7 +277,11 @@ $(document).ready(function () {
     <div id="navbar" class="navbar-collapse collapse">
       <ul class="nav navbar-nav">
         <li>
-  <a href="index.html">Home</a>
+  <a href="index.html">
+    <span class="fas fa-home"></span>
+     
+    Home
+  </a>
 </li>
 <li class="dropdown">
   <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -281,6 +309,20 @@ $(document).ready(function () {
       <a href="03_figures_and_tables">Figures &amp; tables</a>
     </li>
   </ul>
+</li>
+<li>
+  <a href="https://doi.org/10.5281/zenodo.4407207">
+    <span class="fas fa-database"></span>
+     
+    Get data
+  </a>
+</li>
+<li>
+  <a href="https://github.com/christianholland/cirrhosis-metabolism">
+    <span class="fab fa-github"></span>
+     
+    Source code
+  </a>
 </li>
       </ul>
       <ul class="nav navbar-nav navbar-right">
@@ -323,7 +365,7 @@ class="glyphicon glyphicon-ok text-success" aria-hidden="true"></span>
 <div class="tab-content">
 <div id="summary" class="tab-pane fade in active">
 <p>
-<strong>Last updated:</strong> 2023-01-07
+<strong>Last updated:</strong> 2023-01-08
 </p>
 <p>
 <strong>Checks:</strong> <span
@@ -370,15 +412,15 @@ results.</p>
 <div class="panel panel-default">
 <div class="panel-heading">
 <p class="panel-title">
-<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtreee788a14cea3af6ebe0a0d2120b1e44615faebaaetargetblanke788a14a">
+<a data-toggle="collapse" data-parent="#workflowr-checks" href="#strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtree08bc4b36101bfd54600c89a8aa28d3eef490c511targetblank08bc4b3a">
 <span class="glyphicon glyphicon-ok text-success"
 aria-hidden="true"></span> <strong>Repository version:</strong>
-<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/e788a14cea3af6ebe0a0d2120b1e44615faebaae" target="_blank">e788a14</a>
+<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/08bc4b36101bfd54600c89a8aa28d3eef490c511" target="_blank">08bc4b3</a>
 </a>
 </p>
 </div>
 <div
-id="strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtreee788a14cea3af6ebe0a0d2120b1e44615faebaaetargetblanke788a14a"
+id="strongRepositoryversionstrongahrefhttpsgithubcomchristianhollandcirrhosismetabolismtree08bc4b36101bfd54600c89a8aa28d3eef490c511targetblank08bc4b3a"
 class="panel-collapse collapse">
 <div class="panel-body">
 <p>
@@ -388,7 +430,7 @@ reproducibility.
 </p>
 <p>
 The results in this page were generated with repository version
-<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/e788a14cea3af6ebe0a0d2120b1e44615faebaae" target="_blank">e788a14</a>.
+<a href="https://github.com/christianholland/cirrhosis-metabolism/tree/08bc4b36101bfd54600c89a8aa28d3eef490c511" target="_blank">08bc4b3</a>.
 See the <em>Past versions</em> tab to see a history of the changes made
 to the R Markdown and HTML files.
 </p>
@@ -408,10 +450,10 @@ Ignored files:
     Ignored:    .Rproj.user/
     Ignored:    analysis/.DS_Store
     Ignored:    analysis/other/
+    Ignored:    data/.DS_Store
     Ignored:    data/README.html
     Ignored:    data/annotation/
     Ignored:    data/data.zip
-    Ignored:    data/human-hoang-nafld/
     Ignored:    data/meta-mouse-vs-human/
     Ignored:    data/mouse-chronic-ccl4/
     Ignored:    data/output.zip
@@ -430,7 +472,6 @@ Ignored files:
     Ignored:    figures/EPH_hs.pdf
     Ignored:    figures/FMO.pdf
     Ignored:    figures/FMO_hs.pdf
-    Ignored:    figures/Figure 1.pdf
     Ignored:    figures/GST.pdf
     Ignored:    figures/GST_hs.pdf
     Ignored:    figures/MAO.pdf
@@ -443,21 +484,36 @@ Ignored files:
     Ignored:    figures/SULT_hs.pdf
     Ignored:    figures/UGT.pdf
     Ignored:    figures/UGT_hs.pdf
-    Ignored:    figures/collages.pdf
-    Ignored:    figures/correlation.pdf
     Ignored:    figures/correlation_1.pdf
     Ignored:    figures/correlation_2.pdf
     Ignored:    figures/correlation_3.pdf
-    Ignored:    figures/enriched_go_terms.pdf
-    Ignored:    figures/enriched_kegg_pathways.pdf
     Ignored:    figures/heatmap.pdf
     Ignored:    figures/pca_plot.pdf
-    Ignored:    output/mouse-chronic-ccl4/
+    Ignored:    output/.DS_Store
+    Ignored:    output/mouse-chronic-ccl4/.DS_Store
+    Ignored:    output/mouse-chronic-ccl4/carrier_genes.rds
+    Ignored:    output/mouse-chronic-ccl4/correlations.rds
+    Ignored:    output/mouse-chronic-ccl4/enrichment_result.rds
+    Ignored:    output/mouse-chronic-ccl4/genesets_degs.rds
+    Ignored:    output/mouse-chronic-ccl4/genesets_degs_hs.rds
+    Ignored:    output/mouse-chronic-ccl4/metabolic_genes.rds
+    Ignored:    output/mouse-chronic-ccl4/pca_result.rds
+    Ignored:    output/mouse-chronic-ccl4/translated_hs_limma_result.rds
     Ignored:    output/seddik/
     Ignored:    renv/library/
     Ignored:    renv/sandbox/
     Ignored:    renv/staging/
-    Ignored:    tables/gene_annotation.xlsx
+    Ignored:    tables/metabolic_carrier_genes.xlsx
+
+Untracked files:
+    Untracked:  README.html
+
+Unstaged changes:
+    Modified:   README.md
+    Modified:   analysis/_site.yml
+
+Staged changes:
+    Deleted:    figures/README.md
 
 </code></pre>
 <p>
@@ -502,6 +558,40 @@ Message
 </tr>
 </thead>
 <tbody>
+<tr>
+<td>
+Rmd
+</td>
+<td>
+<a href="https://github.com/christianholland/cirrhosis-metabolism/blob/08bc4b36101bfd54600c89a8aa28d3eef490c511/analysis/index.Rmd" target="_blank">08bc4b3</a>
+</td>
+<td>
+christianholland
+</td>
+<td>
+2023-01-08
+</td>
+<td>
+wflow_publish("analysis/*.Rmd")
+</td>
+</tr>
+<tr>
+<td>
+html
+</td>
+<td>
+<a href="https://rawcdn.githack.com/christianholland/cirrhosis-metabolism/d8910e2d462e50dabedf4a13343a57e289c60228/docs/index.html" target="_blank">d8910e2</a>
+</td>
+<td>
+christianholland
+</td>
+<td>
+2023-01-07
+</td>
+<td>
+Build site.
+</td>
+</tr>
 <tr>
 <td>
 html
@@ -749,17 +839,17 @@ Start workflowr project.
 </div>
 <div id="about" class="section level1">
 <h1>About</h1>
-<p>In this project I analyze the expression of genes involved in the
-metabolism of xenobiotic substances in a mouse model that develops
-chronic liver disease induced by administration of CCl<sub>4</sub> for
-2, 6 and 12 months <span class="citation">[@Holland2021]</span>. In
-addition I compare their expression in mouse against the expression in
+<p>In this project the expression of genes involved in the metabolism of
+xenobiotic substances is analyzed in a mouse model that develops chronic
+liver disease induced by administration of CCl<sub>4</sub> for 2, 6 and
+12 months <span class="citation">(Holland et al. 2021)</span>. In
+addition their expression in mouse is compared against the expression in
 patients that suffer from chronic liver disease utilizing a set of
-publicly patient cohorts with transcriptomic data (see Table 1 in <span
-class="citation">[@Holland2021]</span> for more details)</p>
+publicly available patient cohorts (see Table 1 in <span
+class="citation">(Holland et al. 2021)</span> for more details)</p>
 <p>The focus is on the following gene families:</p>
 <ul>
-<li>Phase I Metablism
+<li>Phase I Metabolism
 <ul>
 <li>Cytochrome p450 dependent monooxygenase (CYP)</li>
 <li>Flavin dependent monooxygenases (FMO)</li>
@@ -784,6 +874,19 @@ class="citation">[@Holland2021]</span> for more details)</p>
 <li>Canalicular side</li>
 </ul></li>
 </ul>
+</div>
+<div id="references" class="section level1 unnumbered">
+<h1 class="unnumbered">References</h1>
+<div id="refs" class="references csl-bib-body hanging-indent">
+<div id="ref-Holland2021" class="csl-entry">
+Holland, Christian H., Ricardo O. Ramirez Flores, Maiju Myllys, Reham
+Hassan, Karolina Edlund, Ute Hofmann, Rosemarie Marchan, et al. 2021.
+<span>“Transcriptomic Cross-Species Analysis of Chronic Liver Disease
+Reveals Consistent Regulation Between Humans and Mice.”</span>
+<em>Hepatology Communications</em> 6 (1): 161–77. <a
+href="https://doi.org/10.1002/hep4.1797">https://doi.org/10.1002/hep4.1797</a>.
+</div>
+</div>
 </div>
 
 
