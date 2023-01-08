@@ -10,6 +10,8 @@ analysis/*html
 analysis/*_cache
 analysis/site_libs
 
+README.html
+
 data/**/*.rds
 data/**/*.zip
 data/**/*.xlsx
