@@ -1,7 +1,7 @@
 name: "Cirrhosis Metabolism"
 output_dir: ../docs
 navbar:
-  title: "Cirrhosis Metabolims"
+  title: "Cirrhosis Metabolism"
   left:
   - text: Home
     href: index.html
