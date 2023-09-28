@@ -124,7 +124,7 @@ plots <- pwalk(
   .f = function(p, geneset, n, ...) {
     heights <- list(
       Blood = 2.05, Canalicular = 1.75, `ADH/ALDH` = 2.35, CYP = 3.1, DH = 1.55,
-      EPH = 1.75, FMO = 1.75, GST = 2.55, MAO = 1.55, MT = 2.3, NAT = 2.3,
+      EPH = 1.55, FMO = 1.75, GST = 2.55, MAO = 1.55, MT = 2.3, NAT = 2.3,
       SULT = 2.55, UGT = 2.35
     )
 
@@ -337,7 +337,7 @@ plots_hs <- pwalk(
   .f = function(p, geneset, n, ...) {
     heights <- list(
       Blood = 1.55, Canalicular = 1.85, `ADH/ALDH` = 2.55, CYP = 3.6, DH = 1.75,
-      EPH = 1.75, FMO = 1.59, GST = 1.59, MAO = 1.55, MT = 2.4, NAT = 1.55,
+      EPH = 1.55, FMO = 1.59, GST = 1.59, MAO = 1.55, MT = 2.4, NAT = 1.55,
       SULT = 1.55, UGT = 1.55
     )
 

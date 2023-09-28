@@ -179,7 +179,7 @@ genes <- genes |>
     str_detect(gene, "^Mt") ~ "MT",
     str_detect(gene, "^Nqor") ~ "NQOR",
     str_detect(gene, "^Gst") ~ "GST",
-    str_detect(gene, "^Eph") ~ "EPH",
+    str_detect(gene, "^Ephx") ~ "EPH",
     str_detect(gene, "^Dh") ~ "DH",
     TRUE ~ NA_character_
   )) |>
