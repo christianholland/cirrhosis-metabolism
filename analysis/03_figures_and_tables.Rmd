@@ -88,15 +88,15 @@ ggsave(here("figures/pca_plot.pdf"), p1, width = 3.5 * 1.2, height = 3.5)
 degs <- readRDS(here("output", "mouse-chronic-ccl4", "genesets_degs.rds")) |>
   filter(contrast == "pure_ccl_12m_vs_0m") |>
   mutate(geneset_label = case_when(
-    geneset == "ADH/ALDH" ~ "Alcohol- and aldehyddehydrogenases (ADH/ALDH)",
-    geneset == "CYP" ~ "Cytochrome p450 dependent monooxygenases (CYP)",
-    geneset == "DH" ~ "Dihydrodioldehydrogenases (DH)",
-    geneset == "EPH" ~ "Epoxidhydrolases (EPH)",
+    geneset == "ADH/ALDH" ~ "Alcohol and aldehyd dehydrogenases (ADH/ALDH)",
+    geneset == "CYP" ~ "Cytochrome P450 dependent monooxygenases (CYP)",
+    geneset == "DH" ~ "Dihydrodiol dehydrogenases (DH)",
+    geneset == "EPH" ~ "Epoxid hydrolases (EPH)",
     geneset == "FMO" ~ "Flavin dependent monooxygenases (FMO)",
-    geneset == "GST" ~ "Glutathiontransferases (GST)",
+    geneset == "GST" ~ "Glutathione S-transferases (GST)",
     geneset == "MAO" ~ "Monoamine oxidases (MAO)",
     geneset == "MT" ~ "Methyltransferases (MT)",
-    geneset == "NAT" ~ "Acetyltransferases (NAT)",
+    geneset == "NAT" ~ "N-Acetyltransferases (NAT)",
     geneset == "SULT" ~ "Sulfotransferases (SULT)",
     geneset == "UGT" ~ "UDP-glucuronosyltransferases (UGT)",
     geneset == "Blood" ~ "Blood side carrier",
@@ -292,15 +292,15 @@ gene_mapping <- readRDS(here("data/annotation/gene_id_annotation.rds")) |>
 degs_hs <- readRDS(here("output", "mouse-chronic-ccl4", "genesets_degs_hs.rds")) |>
   filter(contrast == "stage_6_vs_0") |>
   mutate(geneset_label = case_when(
-    geneset == "ADH/ALDH" ~ "Alcohol- and aldehyddehydrogenases (ADH/ALDH)",
-    geneset == "CYP" ~ "Cytochrome p450 dependent monooxygenases (CYP)",
-    geneset == "DH" ~ "Dihydrodioldehydrogenases (DH)",
-    geneset == "EPH" ~ "Epoxidhydrolases (EPH)",
+    geneset == "ADH/ALDH" ~ "Alcohol and aldehyd dehydrogenases (ADH/ALDH)",
+    geneset == "CYP" ~ "Cytochrome P450 dependent monooxygenases (CYP)",
+    geneset == "DH" ~ "Dihydrodiol dehydrogenases (DH)",
+    geneset == "EPH" ~ "Epoxid hydrolases (EPH)",
     geneset == "FMO" ~ "Flavin dependent monooxygenases (FMO)",
-    geneset == "GST" ~ "Glutathiontransferases (GST)",
+    geneset == "GST" ~ "Glutathione S-transferases (GST)",
     geneset == "MAO" ~ "Monoamine oxidases (MAO)",
     geneset == "MT" ~ "Methyltransferases (MT)",
-    geneset == "NAT" ~ "Acetyltransferases (NAT)",
+    geneset == "NAT" ~ "N-Acetyltransferases (NAT)",
     geneset == "SULT" ~ "Sulfotransferases (SULT)",
     geneset == "UGT" ~ "UDP-glucuronosyltransferases (UGT)",
     geneset == "Blood" ~ "Blood side carrier",
