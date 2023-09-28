@@ -377,12 +377,17 @@ plots_hs <- pwalk(
 ```
 
 # Tables
-## Metabolic and carrier genes
+## List of metabolic and carrier genes with degs
 ```{r metabolic-carrier-genes}
+degs <- readRDS(here("data", "mouse-chronic-ccl4", "limma_result.rds")) |>
+  filter(contrast == "pure_ccl_12m_vs_0m")
+
 genes <- readRDS(here("output/mouse-chronic-ccl4/metabolic_genes.rds")) |>
-  select(gene, family, phase)
+  left_join(degs) |> 
+  select(gene, family, phase, logFC, pval, fdr) 
 carrier <- readRDS(here("output/mouse-chronic-ccl4/carrier_genes.rds")) |>
-  select(gene, side)
+  left_join(degs) |> 
+  select(gene, side, logFC, pval, fdr)
 
 datatable(genes)
 datatable(carrier)
